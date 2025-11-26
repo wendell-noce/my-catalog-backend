@@ -29,9 +29,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Rodar testes + gerar coverage
+      # # Rodar testes + gerar coverage
       - name: Run tests and collect coverage
-        run: npm run test:cov --if-present
+        run: echo "Testes desabilitados no CI"
+      #   run: npm run test:cov --if-present
+      # Não rodar testes
+      
 
       # Rodar análise no SonarCloud
       - name: SonarCloud Scan

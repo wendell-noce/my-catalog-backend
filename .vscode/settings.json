@@ -1,0 +1,13 @@
+{
+  "sqltools.connections": [
+    {
+      "ssh": "Disabled",
+      "previewLimit": 50,
+      "server": "localhost",
+      "driver": "PostgreSQL",
+      "name": "My Catalog",
+      "group": "My Projecs",
+      "connectString": "postgresql://postgres:Catalog@2026@db.pgwnsrnshdyvzavvejej.supabase.co:5432/postgres"
+    }
+  ]
+}

@@ -3,16 +3,16 @@ import { JwtService } from '@nestjs/jwt';
 
 import * as bcrypt from 'bcrypt';
 import { UsersService } from 'src/modules/users/service/users.service';
-import { PrismaService } from 'src/shared/prisma/prisma.service';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
+import { RefreshTokenRepository } from '../repositories/refresh-token.repository';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
-    private prisma: PrismaService,
+    private refreshTokenRepository: RefreshTokenRepository,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -87,14 +87,8 @@ export class AuthService {
 
   private async saveRefreshToken(userId: string, token: string) {
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 dias
 
-    await this.prisma.refreshToken.create({
-      data: {
-        token,
-        userId,
-        expiresAt,
-      },
-    });
+    await this.refreshTokenRepository.create(userId, token, expiresAt);
   }
 }

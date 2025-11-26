@@ -1,35 +1,37 @@
-// @ts-check
-import eslint from '@eslint/js';
-import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
-import globals from 'globals';
-import tseslint from 'typescript-eslint';
+import tseslint from '@typescript-eslint/eslint-plugin';
+import tsParser from '@typescript-eslint/parser';
 
-export default tseslint.config(
+export default [
   {
-    ignores: ['eslint.config.mjs'],
-  },
-  eslint.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
-  eslintPluginPrettierRecommended,
-  {
+    files: ["**/*.ts"],
+    ignores: [".eslintrc.js"],
+
     languageOptions: {
-      globals: {
-        ...globals.node,
-        ...globals.jest,
-      },
-      ecmaVersion: 5,
-      sourceType: 'module',
+      parser: tsParser,
       parserOptions: {
-        projectService: true,
+        project: './tsconfig.json',
         tsconfigRootDir: import.meta.dirname,
+        sourceType: 'module',
       },
     },
-  },
-  {
+
+    plugins: {
+      "@typescript-eslint": tseslint,
+    },
+
     rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-floating-promises': 'warn',
-      '@typescript-eslint/no-unsafe-argument': 'warn'
+      // Code Smell Detection
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/explicit-function-return-type": "warn",
+      "@typescript-eslint/explicit-module-boundary-types": "warn",
+      "@typescript-eslint/no-floating-promises": "error",
+
+      complexity: ["warn", 10],
+      "max-lines-per-function": ["warn", { max: 50, skipBlankLines: true }],
+      "max-depth": ["warn", 4],
+      "no-console": "warn",
+      "no-duplicate-imports": "error",
     },
   },
-);
+];

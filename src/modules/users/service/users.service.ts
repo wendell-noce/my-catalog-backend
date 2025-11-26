@@ -3,19 +3,18 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from 'src/shared/prisma/prisma.service';
 import { CreateUserDto } from '../dto/create-user.dto';
+import { UsersRepository } from '../repositories/users.repository';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private usersRepository: UsersRepository) {}
 
   async create(createUserDto: CreateUserDto) {
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: createUserDto.email },
-    });
+    const existingUser = await this.usersRepository.findByEmail(
+      createUserDto.email,
+    );
 
     if (existingUser) {
       throw new ConflictException('Email already exists');
@@ -25,38 +24,15 @@ export class UsersService {
       createUserDto.password = await bcrypt.hash(createUserDto.password, 10);
     }
 
-    return this.prisma.user.create({
-      data: createUserDto,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatar: true,
-        provider: true,
-        createdAt: true,
-      },
-    });
+    return this.usersRepository.create(createUserDto);
   }
 
   async findByEmail(email: string) {
-    return this.prisma.user.findUnique({
-      where: { email },
-    });
+    return this.usersRepository.findByEmail(email);
   }
 
   async findById(id: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatar: true,
-        provider: true,
-        isActive: true,
-        createdAt: true,
-      },
-    });
+    const user = await this.usersRepository.findById(id);
 
     if (!user) {
       throw new NotFoundException('User not found');

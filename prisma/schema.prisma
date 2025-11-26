@@ -8,21 +8,21 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String?
-  name      String?
-  avatar    String?
-  
-  provider   String?  @default("local")
+  id       String  @id @default(uuid())
+  email    String  @unique
+  password String?
+  name     String?
+  avatar   String?
+
+  provider   String? @default("local")
   providerId String?
-  
+
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   refreshTokens RefreshToken[]
-  
+
   @@map("users")
 }
 
@@ -32,8 +32,8 @@ model RefreshToken {
   userId    String
   expiresAt DateTime
   createdAt DateTime @default(now())
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@map("refresh_tokens")
 }

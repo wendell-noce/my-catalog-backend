@@ -5,6 +5,8 @@ import * as bcrypt from 'bcrypt';
 import { UsersService } from 'src/modules/users/service/users.service';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
+import { AuthResponse } from '../interfaces/auth-response.interface';
+import { Tokens } from '../interfaces/tokens.interface';
 import { RefreshTokenRepository } from '../repositories/refresh-token.repository';
 
 @Injectable()
@@ -15,7 +17,7 @@ export class AuthService {
     private refreshTokenRepository: RefreshTokenRepository,
   ) {}
 
-  async register(registerDto: RegisterDto) {
+  async register(registerDto: RegisterDto): Promise<AuthResponse> {
     const user = await this.usersService.create({
       email: registerDto.email,
       password: registerDto.password,
@@ -31,7 +33,7 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto): Promise<AuthResponse> {
     const user = await this.usersService.findByEmail(loginDto.email);
 
     if (!user || !user.password) {
@@ -65,7 +67,7 @@ export class AuthService {
     };
   }
 
-  private async generateTokens(userId: string, email: string) {
+  private async generateTokens(userId: string, email: string): Promise<Tokens> {
     const payload = { sub: userId, email };
 
     const [accessToken, refreshToken] = await Promise.all([
@@ -85,7 +87,7 @@ export class AuthService {
     };
   }
 
-  private async saveRefreshToken(userId: string, token: string) {
+  private async saveRefreshToken(userId: string, token: string): Promise<void> {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 dias
 

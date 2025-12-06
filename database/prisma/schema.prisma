@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String  @id @default(uuid())
+  email    String  @unique
+  password String?
+  name     String?
+  avatar   String?
+
+  provider   String? @default("local")
+  providerId String?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  stores              Store[]
+
+  @@map("users")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  used      Boolean  @default(false)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+model Store {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeCategoryId String
+  storeCategory   StoreCategory @relation(fields: [storeCategoryId], references: [id], onDelete: Cascade)
+  name            String
+  slug            String        @unique
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  products          Product[]
+  productCategories ProductCategory[]
+
+  @@index([userId])
+  @@index([storeCategoryId])
+  @@index([slug])
+  @@index([deletedAt])
+  @@map("stores")
+}
+
+model StoreCategory {
+  id        String    @id @default(uuid())
+  stores    Store[]
+  name      String
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([slug])
+  @@index([deletedAt])
+  @@map("store_categories")
+}
+
+model Product {
+  id               String    @id @default(uuid())
+  storeId          String
+  store            Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name             String    @db.VarChar(255)
+  description      String?   @db.Text
+  stock            Int
+  price            Decimal   @db.Decimal(10, 2)
+  promotionalPrice Decimal   @db.Decimal(10, 2)
+  slug             String    @db.VarChar(255)
+  isActive         Boolean   @default(true)
+  onSale           Boolean   @default(false)
+  saleStart        DateTime?
+  saleEnd          DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  categories ProductCategoryRelation[]
+
+  @@unique([storeId, slug])
+  @@index([storeId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("products")
+}
+
+model ProductCategory {
+  id          String    @id @default(uuid())
+  storeId     String
+  store       Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name        String    @db.VarChar(100)
+  slug        String    @db.VarChar(100)
+  description String?   @db.Text
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  products ProductCategoryRelation[]
+
+  @@unique([storeId, slug])
+  @@index([storeId])
+  @@index([active])
+  @@map("product_categories")
+}
+
+model ProductCategoryRelation {
+  productId         String
+  product           Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productCategoryId String
+  productCategory   ProductCategory @relation(fields: [productCategoryId], references: [id], onDelete: Cascade)
+  createdAt         DateTime        @default(now())
+
+  @@id([productId, productCategoryId])
+  @@index([productId])
+  @@index([productCategoryId])
+  @@map("product_category_relations")
+}

@@ -121,14 +121,14 @@ model Product {
 }
 
 model ProductCategory {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   storeId     String
-  store       Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  name        String    @db.VarChar(100)
-  slug        String    @db.VarChar(100)
-  description String?   @db.Text
-  active      Boolean   @default(true)
-  createdAt   DateTime  @default(now())
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name        String   @db.VarChar(100)
+  slug        String   @db.VarChar(100)
+  description String?  @db.Text
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
   products ProductCategoryRelation[]
 

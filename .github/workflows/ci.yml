@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ['main']
   pull_request:
 
 jobs:
@@ -58,14 +58,14 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: "postgresql://user:pass@localhost:5432/db"
+      DATABASE_URL: 'postgresql://user:pass@localhost:5432/db'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - run: npm ci
-      - run: npx prisma generate  # ← ADICIONA ISSO
+      - run: npx prisma generate  --schema=./database/prisma/schema.prisma
       - run: npm run build
 
   prisma-check:
@@ -73,14 +73,14 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: "postgresql://user:pass@localhost:5432/db"
+      DATABASE_URL: 'postgresql://user:pass@localhost:5432/db'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - run: npm ci
-      - run: npx prisma generate
+      - run: npx prisma generate --schema=./database/prisma/schema.prisma
       - run: npx prisma validate
       - run: npx prisma format --check
 
@@ -89,14 +89,14 @@ jobs:
     needs: [lint, format-check, type-check, prisma-check]
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: "postgresql://user:pass@localhost:5432/db"
+      DATABASE_URL: 'postgresql://user:pass@localhost:5432/db'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - run: npm ci
-      - run: npx prisma generate  # ← ADICIONA ISSO
+      - run: npx prisma generate # ← ADICIONA ISSO
       - run: npm run build
       - uses: actions/upload-artifact@v4
         with:

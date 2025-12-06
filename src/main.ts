@@ -32,7 +32,7 @@ function setupSwagger(app: INestApplication): void {
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
 
-  // Versionamento Global da API
+  //***  Global Version to API
   app.setGlobalPrefix('api/v1');
 
   // CORS
@@ -60,15 +60,15 @@ async function bootstrap(): Promise<void> {
   await app.listen(port);
 
   // eslint-disable-next-line no-console
-  console.log(`🚀 Application is running on: http://localhost:${port}`);
+  console.log(`Application is running on: http://localhost:${port}`);
   // eslint-disable-next-line no-console
-  console.log(`📚 Swagger documentation: http://localhost:${port}/api/docs`);
+  console.log(`Swagger documentation: http://localhost:${port}/api/docs`);
   // eslint-disable-next-line no-console
-  console.log(`🔗 API base URL: http://localhost:${port}/api/v1`);
+  console.log(`API base URL: http://localhost:${port}/api/v1`);
 }
 
 bootstrap().catch((err) => {
   // eslint-disable-next-line no-console
-  console.error('❌ Error starting application:', err);
+  console.error('Error starting application:', err);
   process.exit(1);
 });

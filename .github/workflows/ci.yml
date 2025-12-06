@@ -81,8 +81,8 @@ jobs:
           node-version: 20
       - run: npm ci
       - run: npx prisma generate --schema=./database/prisma/schema.prisma
-      - run: npx prisma validate
-      - run: npx prisma format --check
+      - run: npx prisma validate --schema=./database/prisma/schema.prisma
+      - run: npx prisma format --check --schema=./database/prisma/schema.prisma
 
   build:
     name: Build

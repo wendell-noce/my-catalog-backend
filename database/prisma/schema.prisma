@@ -92,7 +92,7 @@ model User {
   provider        String?   @default("local")
   providerId      String?
   isActive        Boolean   @default(true)
-  emailVerified   Boolean   @default(false) // Verificação de email
+  emailVerified   Boolean   @default(false)
   emailVerifiedAt DateTime?
   phoneVerified   Boolean   @default(false)
   phoneVerifiedAt DateTime?
@@ -102,7 +102,6 @@ model User {
 
   // Relations
   stores              Store[]
-  linktrees           Linktree[]
   userAddresses       UserAddress[]
   blogPosts           BlogPost[]
   refreshTokens       RefreshToken[]
@@ -266,6 +265,7 @@ model Store {
   pages          Page[]
   blogPosts      BlogPost[]
   blogCategories BlogCategory[]
+  linktrees      Linktree[]
 
   @@map("stores")
 }
@@ -496,7 +496,7 @@ model BlogCategory {
 
 model Linktree {
   id              String   @id @default(uuid())
-  userId          String
+  storeId         String
   title           String
   description     String
   backgroundColor String?
@@ -505,7 +505,7 @@ model Linktree {
   updatedAt       DateTime @updatedAt
 
   links Link[]
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@map("linktrees")
 }

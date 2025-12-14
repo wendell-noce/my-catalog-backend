@@ -85,18 +85,18 @@ model User {
   avatar          String?
   password        String
   document        String?   @unique
-  cellPhone       String?   
-  birthDate       DateTime? 
-  gender          Gender?   
+  cellPhone       String?
+  birthDate       DateTime?
+  gender          Gender?
   role            UserRole  @default(USER)
   provider        String?   @default("local")
   providerId      String?
   isActive        Boolean   @default(true)
   emailVerified   Boolean   @default(false) // Verificação de email
-  emailVerifiedAt DateTime? 
+  emailVerifiedAt DateTime?
   phoneVerified   Boolean   @default(false)
-  phoneVerifiedAt DateTime? 
-  lastLoginAt     DateTime? 
+  phoneVerifiedAt DateTime?
+  lastLoginAt     DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -196,7 +196,7 @@ model EmailVerification {
   id        String   @id @default(uuid())
   userId    String
   token     String   @unique
-  code      String?  
+  code      String?
   used      Boolean  @default(false)
   expiresAt DateTime
   createdAt DateTime @default(now())
@@ -212,8 +212,8 @@ model EmailVerification {
 model PhoneVerification {
   id        String   @id @default(uuid())
   userId    String
-  phone     String   
-  code      String   
+  phone     String
+  code      String
   used      Boolean  @default(false)
   attempts  Int      @default(0)
   expiresAt DateTime

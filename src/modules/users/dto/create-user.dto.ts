@@ -10,7 +10,7 @@ export class CreateUserDto {
 
   @IsString()
   @IsOptional()
-  name?: string;
+  name: string;
 
   @IsString()
   @IsOptional()

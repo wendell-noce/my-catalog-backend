@@ -13,8 +13,8 @@ import { PrismaModule } from './shared/prisma/primas.module';
       isGlobal: true,
     }),
     PrismaModule,
-    UsersModule,
     AuthModule,
+    UsersModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,

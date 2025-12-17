@@ -70,8 +70,7 @@ enum Gender {
 enum UserRole {
   USER
   ADMIN
-  SELLER
-  MANAGER
+  MODERATOR
 }
 
 // ============================================
@@ -99,6 +98,7 @@ model User {
   lastLoginAt     DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  deletedAt      DateTime?
 
   // Relations
   stores              Store[]

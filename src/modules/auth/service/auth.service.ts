@@ -10,7 +10,6 @@ import { UsersService } from 'src/modules/users/service/users.service';
 import { PrismaService } from 'src/shared/prisma/prisma.service';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { LoginDto } from '../dto/login.dto';
-import { RegisterDto } from '../dto/register.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { AuthResponse } from '../interfaces/auth-response.interface';
 import { Tokens } from '../interfaces/tokens.interface';
@@ -25,22 +24,6 @@ export class AuthService {
     private jwtService: JwtService,
     private refreshTokenRepository: RefreshTokenRepository,
   ) {}
-
-  async register(registerDto: RegisterDto): Promise<AuthResponse> {
-    const user = await this.usersService.create({
-      email: registerDto.email,
-      password: registerDto.password,
-      name: registerDto.name,
-    });
-
-    const tokens = await this.generateTokens(user.id, user.email);
-    await this.saveRefreshToken(user.id, tokens.refreshToken);
-
-    return {
-      user,
-      ...tokens,
-    };
-  }
 
   async login(loginDto: LoginDto): Promise<AuthResponse> {
     const user = await this.usersService.findByEmail(loginDto.email);

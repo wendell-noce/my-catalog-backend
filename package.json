@@ -21,7 +21,9 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\"",
-    "prepare": "husky"
+    "prepare": "husky",
+    "prisma:generate": "prisma generate --schema=./database/prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate deploy --schema=./database/prisma/schema.prisma"
   },
   "lint-staged": {
     "*.ts": [

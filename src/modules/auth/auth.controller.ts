@@ -12,7 +12,6 @@ import { ApiBody, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthResponse } from './interfaces/auth-response.interface';
 import { ValidateTokenResponse } from './interfaces/validate-token-respone.interface';
@@ -21,57 +20,6 @@ import { AuthService } from './service/auth.service';
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
-
-  @Post('register')
-  @ApiOperation({
-    summary: 'Register new user',
-    description: 'Create a new user account with email, password and name',
-  })
-  @ApiBody({ type: RegisterDto })
-  @ApiResponse({
-    status: 201,
-    description: 'User registered successfully',
-    schema: {
-      example: {
-        accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-        refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-        user: {
-          id: '123e4567-e89b-12d3-a456-426614174000',
-          email: 'user@example.com',
-          name: 'John Doe',
-          createdAt: '2024-12-05T10:00:00Z',
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid input data or email already exists',
-    schema: {
-      example: {
-        statusCode: 400,
-        message: [
-          'email must be an email',
-          'password must be at least 6 characters',
-        ],
-        error: 'Bad Request',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 409,
-    description: 'Email already registered',
-    schema: {
-      example: {
-        statusCode: 409,
-        message: 'Email already exists',
-        error: 'Conflict',
-      },
-    },
-  })
-  async register(@Body() registerDto: RegisterDto): Promise<AuthResponse> {
-    return this.authService.register(registerDto);
-  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)

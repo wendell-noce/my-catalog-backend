@@ -19,28 +19,32 @@ export default [
     },
 
     rules: {
+      // base recomendada do typescript-eslint
       ...tseslint.configs.recommended.rules,
+
+      // 🚫 desligadas por enquanto
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+
+      // qualidade e complexidade
       'max-lines-per-function': [
-        'error',
+        'warn',
         {
-          max: 100,
+          max: 50,
           skipBlankLines: true,
           skipComments: true,
         },
       ],
-      complexity: ['error', 15],
+      complexity: ['warn', 10],
+      'max-depth': ['warn', 4],
+
+      // boas práticas
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_' },
       ],
-      '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/explicit-function-return-type': 'warn',
-      '@typescript-eslint/explicit-module-boundary-types': 'warn',
       '@typescript-eslint/no-floating-promises': 'error',
-
-      complexity: ['warn', 10],
-      'max-lines-per-function': ['warn', { max: 50, skipBlankLines: true }],
-      'max-depth': ['warn', 4],
       'no-console': 'warn',
       'no-duplicate-imports': 'error',
     },

@@ -1,12 +1,18 @@
+import { Gender, UserRole } from '@prisma/client';
+
 export interface UserResponse {
   id: string;
+  name: string;
   email: string;
-  name: string | null;
   avatar: string | null;
-  provider: string | null;
-  createdAt: Date;
-}
-
-export type UserWithStatus = UserResponse & {
+  document: string | null;
+  cellPhone: string | null;
+  birthDate: Date | null;
+  gender: Gender;
+  role: UserRole;
   isActive: boolean;
-};
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}

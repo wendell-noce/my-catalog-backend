@@ -98,7 +98,7 @@ model User {
   lastLoginAt     DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  deletedAt      DateTime?
+  deletedAt       DateTime?
 
   // Relations
   stores              Store[]

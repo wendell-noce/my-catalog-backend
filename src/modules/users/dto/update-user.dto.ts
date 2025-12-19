@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Gender, UserRole } from '@prisma/client';
+import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
@@ -9,7 +10,9 @@ import {
   IsString,
   Matches,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+import { UpdateAddressDto } from 'src/modules/addresses/dto/update-address.dto';
 
 export class UpdateUserDto {
   @ApiPropertyOptional({ example: 'João Silva' })
@@ -74,4 +77,13 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   phoneVerified?: boolean;
+
+  @ApiPropertyOptional({
+    type: () => UpdateAddressDto,
+    description: 'Endereço principal do usuário',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => UpdateAddressDto)
+  address?: UpdateAddressDto;
 }

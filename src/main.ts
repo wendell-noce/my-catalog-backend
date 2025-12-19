@@ -2,6 +2,8 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 
 function setupSwagger(app: INestApplication): void {
   const config = new DocumentBuilder()
@@ -34,6 +36,11 @@ async function bootstrap(): Promise<void> {
 
   //***  Global Version to API
   app.setGlobalPrefix('api/v1');
+
+  // Interceptor para padronizar respostas de sucesso
+  app.useGlobalInterceptors(new ResponseInterceptor());
+  // Filtro para padronizar respostas de erro
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   // CORS
   app.enableCors({

@@ -87,6 +87,30 @@ export class UsersService {
       updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
     }
 
-    return ResponseHelper.success('Usuário editado com sucesso');
+    await this.usersRepository.update(user.id, updateUserDto);
+
+    return ResponseHelper.success({ message: 'Usuário editado com sucesso' });
+  }
+
+  async delete(id: string) {
+    const user = await this.findById(id);
+
+    await this.usersRepository.softDelete(user.id);
+
+    return ResponseHelper.success({ message: 'Usuário deletado com sucesso' });
+  }
+
+  async restore(id: string) {
+    const user = await this.findById(id);
+
+    await this.usersRepository.restore(user.id);
+
+    return ResponseHelper.success({
+      message: 'Usuário restaurado com sucesso',
+    });
+  }
+
+  async findWithAddressById(id: string) {
+    return this.usersRepository.findWithAddressById(id);
   }
 }

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, User } from '@prisma/client';
+import { AddressType, Prisma, User } from '@prisma/client';
+import { UpdateAddressDto } from 'src/modules/addresses/dto/update-address.dto';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
@@ -23,18 +24,33 @@ export class UsersRepository {
     gender: true,
     role: true,
     isActive: true,
-    emailVerified: true,
-    phoneVerified: true,
-    createdAt: true,
-    updatedAt: true,
   };
 
   async create(data: CreateUserDto): Promise<{ message: string }> {
-    await this.prisma.user.create({
-      data,
+    const { address, ...userData } = data;
+    const { type, ...addressData } = address;
+
+    await this.prisma.$transaction(async (prisma) => {
+      const user = await prisma.user.create({
+        data: userData,
+      });
+
+      // 2. Criar o endereço
+      const createdAddress = await prisma.address.create({
+        data: addressData,
+      });
+
+      // 3. Criar a relação user-address
+      await prisma.userAddress.create({
+        data: {
+          user_id: user.id,
+          address_id: createdAddress.id,
+          type: type,
+        },
+      });
     });
 
-    return { message: 'Usuário cadastrado com sucesso' };
+    return { message: 'Usuário criado com sucesso' };
   }
 
   async findByEmail(email: string): Promise<User | null> {
@@ -97,10 +113,129 @@ export class UsersRepository {
   }
 
   async update(id: string, data: UpdateUserDto) {
+    const { address, ...userData } = data;
+
+    if (!address) {
+      return this.updateUserOnly(id, userData);
+    }
+
+    return this.updateUserWithAddress(id, userData, address);
+  }
+
+  private async updateUserOnly(id: string, userData: Partial<UpdateUserDto>) {
     return this.prisma.user.update({
       where: { id },
-      data,
+      data: userData,
       select: this.defaultSelect,
+    });
+  }
+
+  private async updateUserWithAddress(
+    id: string,
+    userData: Partial<UpdateUserDto>,
+    address: UpdateAddressDto,
+  ) {
+    const { type, ...addressData } = address;
+
+    return this.prisma.$transaction(async (prisma) => {
+      const mainAddress = await this.findUserAddress(id, type, prisma);
+
+      if (!mainAddress) {
+        await this.createNewAddress(id, addressData, type, prisma);
+      } else {
+        await this.updateExistingAddress(
+          mainAddress.address_id,
+          addressData,
+          prisma,
+        );
+      }
+
+      return this.updateUserOnly(id, userData);
+    });
+  }
+
+  private async findUserAddress(
+    userId: string,
+    type: AddressType | undefined,
+    prisma: any,
+  ) {
+    return prisma.userAddress.findFirst({
+      where: {
+        user_id: userId,
+        type: type || 'MAIN',
+      },
+    });
+  }
+
+  private async createNewAddress(
+    userId: string,
+    addressData: Partial<UpdateAddressDto>,
+    type: AddressType | undefined,
+    prisma: any,
+  ) {
+    const newAddress = await prisma.address.create({
+      data: addressData,
+    });
+
+    await prisma.userAddress.create({
+      data: {
+        user_id: userId,
+        address_id: newAddress.id,
+        type: type || 'MAIN',
+        is_default: true,
+      },
+    });
+  }
+
+  private async updateExistingAddress(
+    addressId: string,
+    addressData: Partial<UpdateAddressDto>,
+    prisma: any,
+  ) {
+    await prisma.address.update({
+      where: { id: addressId },
+      data: addressData,
+    });
+  }
+
+  async softDelete(id: string) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  async restore(id: string) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { deletedAt: null },
+    });
+  }
+
+  async findWithAddressById(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        ...this.defaultSelect,
+        userAddresses: {
+          select: {
+            type: true,
+            is_default: true,
+            address: {
+              select: {
+                street: true,
+                number: true,
+                neighborhood: true,
+                city: true,
+                state: true,
+                zip_code: true,
+                country: true,
+                complement: true,
+              },
+            },
+          },
+        },
+      },
     });
   }
 }

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Gender, UserRole } from '@prisma/client';
+import { Type } from 'class-transformer';
 import {
   IsDateString,
   IsEmail,
@@ -10,7 +11,9 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+import { CreateAddressDto } from 'src/modules/addresses/dto/create-address.dto';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'joao@example.com', description: 'Email do usuário' })
@@ -43,6 +46,7 @@ export class CreateUserDto {
   @Matches(/^\d{11}$|^\d{14}$/, {
     message: 'Documento deve ser CPF (11 dígitos) ou CNPJ (14 dígitos)',
   })
+  @ApiProperty({ example: '12345678901', description: 'Documento do usuário' })
   document: string;
 
   @IsString()
@@ -50,10 +54,15 @@ export class CreateUserDto {
   @Matches(/^\d{10,11}$/, {
     message: 'Celular deve ter 10 ou 11 dígitos',
   })
+  @ApiProperty({ example: '99999999999', description: 'Celular do usuário' })
   cellPhone: string;
 
   @IsDateString({}, { message: 'Data de nascimento inválida' })
   @IsNotEmpty({ message: 'Data de nascimento é obrigatória' })
+  @ApiProperty({
+    example: '1990-01-01',
+    description: 'Data de nascimento do usuário',
+  })
   birthDate: string;
 
   @ApiProperty({ enum: Gender, example: Gender.MALE })
@@ -74,4 +83,14 @@ export class CreateUserDto {
   @IsEnum(UserRole, { message: 'Role inválida' })
   @IsOptional()
   role?: UserRole = UserRole.USER;
+
+  @ValidateNested()
+  @Type(() => CreateAddressDto)
+  @IsOptional()
+  @ApiProperty({
+    type: CreateAddressDto,
+    description: 'Endereço do usuário',
+    required: false,
+  })
+  address: CreateAddressDto;
 }

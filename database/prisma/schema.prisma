@@ -73,6 +73,18 @@ enum UserRole {
   MODERATOR
 }
 
+enum AddressType {
+  MAIN
+  DELIVERY
+  BILLING
+  WORK
+}
+
+enum StoreAddressType {
+  PHYSICAL
+  BILLING
+}
+
 // ============================================
 // USER & AUTHENTICATION
 // ============================================
@@ -146,17 +158,18 @@ model PasswordResetToken {
 // ============================================
 
 model Address {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   street       String
   number       String
   neighborhood String
   city         String
   state        String
   zip_code     String
-  country      String
+  country      String    @default("Brasil")
   complement   String?
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  deleted_at   DateTime?
 
   // Relations
   userAddresses  UserAddress[]
@@ -168,6 +181,8 @@ model Address {
 model UserAddress {
   user_id    String
   address_id String
+  type       AddressType @default(MAIN)
+  is_default Boolean     @default(false)
 
   user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
   address Address @relation(fields: [address_id], references: [id], onDelete: Cascade)
@@ -179,6 +194,8 @@ model UserAddress {
 model StoreAddress {
   store_id   String
   address_id String
+  type       StoreAddressType @default(PHYSICAL)
+  is_default Boolean          @default(false)
 
   store   Store   @relation(fields: [store_id], references: [id], onDelete: Cascade)
   address Address @relation(fields: [address_id], references: [id], onDelete: Cascade)

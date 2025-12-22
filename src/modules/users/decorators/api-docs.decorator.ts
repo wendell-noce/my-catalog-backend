@@ -7,6 +7,7 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 import { CreateUserDto } from '../dto/create-user.dto';
+import { RegisterUserDto } from '../dto/register-user.dto';
 
 export function ApiGetUserById() {
   return applyDecorators(
@@ -49,7 +50,6 @@ export function ApiGetUserById() {
 
 export function ApiCreateUser() {
   return applyDecorators(
-    ApiBearerAuth(),
     ApiOperation({
       summary: 'Register new user',
       description: 'Create a new user account with email, password and name',
@@ -64,6 +64,24 @@ export function ApiCreateUser() {
       status: 400,
       description: 'Invalid input data or email already exists',
       // ...
+    }),
+  );
+}
+
+export function ApiRegisterUser() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Register new user',
+      description: 'Create a new user account with email, password and name',
+    }),
+    ApiBody({ type: RegisterUserDto, description: 'User registration data' }),
+    ApiResponse({
+      status: 201,
+      description: 'User registered successfully',
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Invalid input data or email already exists',
     }),
   );
 }

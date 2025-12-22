@@ -16,6 +16,7 @@ import {
   ApiDeleteUser,
   ApiFindAllUsers,
   ApiGetUserById,
+  ApiRegisterUser,
   ApiRestoreUser,
   ApiUpdateUser,
   ApiUserProfile,
@@ -23,6 +24,7 @@ import {
 } from './decorators/api-docs.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 import { FindUsersQueryDto } from './dto/find-users-query.dto';
+import { RegisterUserDto } from './dto/register-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponse } from './interfaces/user-response.interface';
 import { UsersService } from './service/users.service';
@@ -69,15 +71,18 @@ export class UsersController {
     return this.usersService.findWithAddressById(id);
   }
 
-  // --- SEÇÃO: ESCRITA (WRITE) ---
-
   @Post('create')
-  @UseGuards(JwtAuthGuard)
   @ApiCreateUser()
   async create(
     @Body() createUser: CreateUserDto,
   ): Promise<{ message: string }> {
     return this.usersService.create(createUser);
+  }
+
+  @Post('register')
+  @ApiRegisterUser()
+  async register(@Body() registerUser: RegisterUserDto) {
+    return this.usersService.register(registerUser);
   }
 
   @Patch(':id')

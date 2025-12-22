@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './modules/auth/auth.module';
+import { StoreModule } from './modules/store/store.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './shared/prisma/primas.module';
 
@@ -15,6 +16,7 @@ import { PrismaModule } from './shared/prisma/primas.module';
     PrismaModule,
     AuthModule,
     UsersModule,
+    StoreModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,

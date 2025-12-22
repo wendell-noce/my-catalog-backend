@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { AddressType, Prisma, User } from '@prisma/client';
 import { UpdateAddressDto } from 'src/modules/addresses/dto/update-address.dto';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import { CreateUserDto } from '../dto/create-user.dto';
+import { RegisterUserDto } from '../dto/register-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import {
   CountParams,
@@ -51,6 +52,20 @@ export class UsersRepository {
     });
 
     return { message: 'Usuário criado com sucesso' };
+  }
+
+  async register(registerUser: RegisterUserDto) {
+    try {
+      await this.prisma.user.create({
+        data: registerUser,
+      });
+      return { message: 'Usuário registrado com sucesso!' };
+    } catch (error) {
+      console.error('Erro ao registrar usuário:', error);
+      throw new InternalServerErrorException(
+        'Erro ao criar loja. Por favor, tente novamente.',
+      );
+    }
   }
 
   async findByEmail(email: string): Promise<User | null> {

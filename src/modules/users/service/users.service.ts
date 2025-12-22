@@ -7,6 +7,7 @@ import { User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { ResponseHelper } from 'src/common/helpers/response.helper';
 import { CreateUserDto } from '../dto/create-user.dto';
+import { RegisterUserDto } from '../dto/register-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { FindAllParams } from '../interfaces/find-all-users.interface';
 import { UsersRepository } from '../repositories/users.repository';
@@ -21,7 +22,9 @@ export class UsersService {
     );
 
     if (existingUser) {
-      throw new ConflictException('Email already exists');
+      throw new ConflictException(
+        `O email ${createUserDto.email} ja esta cadastrado. Tente novamente com outro email.`,
+      );
     }
 
     if (createUserDto.password) {
@@ -31,6 +34,21 @@ export class UsersService {
     const user = await this.usersRepository.create(createUserDto);
 
     return ResponseHelper.success(user, 'Usuário cadastrado com sucesso');
+  }
+
+  async register(registerUser: RegisterUserDto) {
+    const existingUser = await this.usersRepository.findByEmail(
+      registerUser.email,
+    );
+
+    if (existingUser) {
+      throw new ConflictException(
+        `O email ${registerUser.email} ja esta cadastrado. Tente novamente com outro email.`,
+      );
+    }
+
+    const user = await this.usersRepository.register(registerUser);
+    return ResponseHelper.success(user, 'Usuário registrado com sucesso!');
   }
 
   async findByEmail(email: string): Promise<User | null> {

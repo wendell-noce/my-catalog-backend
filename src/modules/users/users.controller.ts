@@ -7,11 +7,13 @@ import {
   Patch,
   Post,
   Query,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import {
+  ApiCheckProfileCompleted,
   ApiCreateUser,
   ApiDeleteUser,
   ApiFindAllUsers,
@@ -42,7 +44,12 @@ export class UsersController {
     return this.usersService.findById(user.id);
   }
 
-  // *** GETs ***
+  @Get('profile-completed')
+  @UseGuards(JwtAuthGuard)
+  @ApiCheckProfileCompleted()
+  async getProfileCompleted(@Request() req) {
+    return this.usersService.findById(req.user.id);
+  }
 
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -57,18 +64,18 @@ export class UsersController {
     });
   }
 
-  @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiGetUserById()
-  async findById(@Param('id') id: string) {
-    return this.usersService.findById(id);
-  }
-
   @Get(':id/full')
   @UseGuards(JwtAuthGuard)
   @findWithAddressById()
   async findWithAddressById(@Param('id') id: string) {
     return this.usersService.findWithAddressById(id);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiGetUserById()
+  async findById(@Param('id') id: string) {
+    return this.usersService.findById(id);
   }
 
   @Post('create')
@@ -92,19 +99,17 @@ export class UsersController {
     return this.usersService.update(id, updateDto);
   }
 
-  // --- SEÇÃO: ADMINISTRAÇÃO / ESTADO ---
+  @Patch(':id/restore')
+  @UseGuards(JwtAuthGuard)
+  @ApiRestoreUser()
+  async restore(@Param('id') id: string) {
+    return this.usersService.restore(id);
+  }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiDeleteUser()
   async delete(@Param('id') id: string) {
     return this.usersService.delete(id);
-  }
-
-  @Patch(':id/restore')
-  @UseGuards(JwtAuthGuard)
-  @ApiRestoreUser()
-  async restore(@Param('id') id: string) {
-    return this.usersService.restore(id);
   }
 }

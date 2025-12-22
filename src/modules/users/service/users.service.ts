@@ -131,4 +131,9 @@ export class UsersService {
   async findWithAddressById(id: string) {
     return this.usersRepository.findWithAddressById(id);
   }
+
+  async checkProfileCompleted(userId: string) {
+    const user = await this.usersRepository.findById(userId);
+    return user?.profile_completed ?? false;
+  }
 }

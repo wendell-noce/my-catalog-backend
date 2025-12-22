@@ -58,12 +58,10 @@ export function ApiCreateUser() {
     ApiResponse({
       status: 201,
       description: 'User registered successfully',
-      // ...
     }),
     ApiResponse({
       status: 400,
       description: 'Invalid input data or email already exists',
-      // ...
     }),
   );
 }
@@ -242,6 +240,48 @@ export function findWithAddressById() {
             state: 'SP',
             country: 'Brazil',
           },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'User not found',
+      schema: {
+        example: {
+          statusCode: 404,
+          message: 'User not found',
+          error: 'Not Found',
+        },
+      },
+    }),
+  );
+}
+
+export function ApiCheckProfileCompleted() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Check if user profile is completed',
+      description:
+        'Verify if the authenticated user has completed their profile information',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Profile completion status retrieved successfully',
+      schema: {
+        example: {
+          profileCompleted: true,
+        },
+      },
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - Invalid or missing token',
+      schema: {
+        example: {
+          statusCode: 401,
+          message: 'Unauthorized',
+          error: 'Unauthorized',
         },
       },
     }),

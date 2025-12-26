@@ -1,11 +1,14 @@
 import {
   ConflictException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { ResponseHelper } from 'src/common/helpers/response.helper';
+import { AuthService } from 'src/modules/auth/service/auth.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { RegisterUserDto } from '../dto/register-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
@@ -14,7 +17,11 @@ import { UsersRepository } from '../repositories/users.repository';
 
 @Injectable()
 export class UsersService {
-  constructor(private usersRepository: UsersRepository) {}
+  constructor(
+    private usersRepository: UsersRepository,
+    @Inject(forwardRef(() => AuthService))
+    private authService: AuthService,
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<{ message: string }> {
     const existingUser = await this.usersRepository.findByEmail(
@@ -47,8 +54,22 @@ export class UsersService {
       );
     }
 
+    // *** Register new user
     const user = await this.usersRepository.register(registerUser);
-    return ResponseHelper.success(user, 'Usuário registrado com sucesso!');
+
+    // *** Login user
+    const token = await this.authService.generateTokens(user.id, user.email);
+
+    return ResponseHelper.success(
+      {
+        user: {
+          email: user.email,
+          name: user.name,
+          accessToken: token.accessToken,
+        },
+      },
+      'Usuário registrado com sucesso!',
+    );
   }
 
   async findByEmail(email: string): Promise<User | null> {

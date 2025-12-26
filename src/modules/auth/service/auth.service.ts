@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  forwardRef,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -20,6 +22,7 @@ import { RefreshTokenRepository } from '../repositories/refresh-token.repository
 export class AuthService {
   constructor(
     private prisma: PrismaService,
+    @Inject(forwardRef(() => UsersService))
     private usersService: UsersService,
     private jwtService: JwtService,
     private refreshTokenRepository: RefreshTokenRepository,
@@ -59,7 +62,7 @@ export class AuthService {
     };
   }
 
-  private async generateTokens(userId: string, email: string): Promise<Tokens> {
+  public async generateTokens(userId: string, email: string): Promise<Tokens> {
     const payload = { sub: userId, email };
 
     const [accessToken, refreshToken] = await Promise.all([

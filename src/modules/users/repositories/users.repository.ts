@@ -57,14 +57,22 @@ export class UsersRepository {
 
   async register(registerUser: RegisterUserDto) {
     try {
-      await this.prisma.user.create({
+      const user = await this.prisma.user.create({
         data: registerUser,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          isActive: false,
+          emailVerified: false,
+        },
       });
-      return { message: 'Usuário registrado com sucesso!' };
+
+      return user;
     } catch (error) {
       console.error('Erro ao registrar usuário:', error);
       throw new InternalServerErrorException(
-        'Erro ao criar loja. Por favor, tente novamente.',
+        'Erro ao criar usuário. Por favor, tente novamente.',
       );
     }
   }

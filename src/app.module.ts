@@ -4,7 +4,10 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './modules/auth/auth.module';
+import { PaymentModule } from './modules/payment/payment.module';
+import { PlanModule } from './modules/plan/plan.module';
 import { StoreModule } from './modules/store/store.module';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './shared/prisma/primas.module';
 
@@ -23,6 +26,9 @@ import { PrismaModule } from './shared/prisma/primas.module';
         limit: 10,
       },
     ]),
+    PlanModule,
+    PaymentModule,
+    SubscriptionModule,
   ],
   providers: [
     {

@@ -85,35 +85,91 @@ enum StoreAddressType {
   BILLING
 }
 
+enum PaymentGateway {
+  STRIPE
+  MERCADOPAGO
+  ASAAS
+  PAGSEGURO
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  PIX
+  BOLETO
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  APPROVED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum PaymentType {
+  INITIAL
+  RENEWAL
+  UPGRADE
+  DOWNGRADE
+}
+
+enum SubscriptionStatus {
+  PENDING // Criada mas ainda não iniciada
+  TRIAL // Em período de trial (7 dias)
+  TRIAL_EXPIRED // Trial acabou, aguardando pagamento
+  ACTIVE // Ativa e paga
+  PAST_DUE // Pagamento atrasado (ainda tem acesso)
+  CANCELLED // Cancelada pelo usuário
+  SUSPENDED // Suspensa por falta de pagamento (sem acesso)
+  EXPIRED // Período acabou
+}
+
+enum ScheduledChangeType {
+  UPGRADE
+  DOWNGRADE
+}
+
+enum PlanTier {
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum PlanInterval {
+  MONTHLY
+  YEARLY
+}
+
 // ============================================
 // USER & AUTHENTICATION
 // ============================================
 
 model User {
-  id                String    @id @default(uuid())
-  name              String
-  email             String    @unique
-  avatar            String?
-  password          String
-  profile_completed Boolean   @default(false)
-  document          String?   @unique
-  cellPhone         String?
-  birthDate         DateTime?
-  gender            Gender?
-  role              UserRole  @default(USER)
-  provider          String?   @default("local")
-  providerId        String?
-  isActive          Boolean   @default(true)
-  emailVerified     Boolean   @default(false)
-  emailVerifiedAt   DateTime?
-  phoneVerified     Boolean   @default(false)
-  phoneVerifiedAt   DateTime?
-  lastLoginAt       DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  deletedAt         DateTime?
+  id               String    @id @default(uuid())
+  name             String
+  email            String    @unique
+  avatar           String?
+  password         String
+  profileCompleted Boolean   @default(false) @map("profile_completed")
+  document         String?   @unique
+  cellPhone        String?
+  birthDate        DateTime?
+  gender           Gender?
+  role             UserRole  @default(USER)
+  provider         String?   @default("local")
+  providerId       String?
+  isActive         Boolean   @default(true)
+  emailVerified    Boolean   @default(false)
+  emailVerifiedAt  DateTime?
+  phoneVerified    Boolean   @default(false)
+  phoneVerifiedAt  DateTime?
+  lastLoginAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
 
-  // Relations
+  // Relations existentes
   stores              Store[]
   userAddresses       UserAddress[]
   blogPosts           BlogPost[]
@@ -121,6 +177,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   emailVerifications  EmailVerification[]
   phoneVerifications  PhoneVerification[]
+  customerGateways CustomerGateway[]
+  subscriptions Subscription[]
 
   @@map("users")
 }
@@ -535,4 +593,194 @@ model Link {
   linktree Linktree? @relation(fields: [linktreeId], references: [id], onDelete: Cascade)
 
   @@map("links")
+}
+
+// ========================================
+// PLANOS
+// ========================================
+
+model Plan {
+  id            String       @id @default(uuid())
+  name          String
+  description   String?
+  tier          PlanTier
+  interval      PlanInterval
+  price         Decimal      @db.Decimal(10, 2)
+  currency      String       @default("BRL")
+  intervalCount Int          @default(1)
+  isRecurring   Boolean      @default(true)
+  features      Json?
+  active        Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  subscriptions    Subscription[] @relation("PlanSubscriptions")
+  scheduledChanges Subscription[] @relation("ScheduledPlanChanges")
+  planGateways     PlanGateway[]
+
+  @@index([active])
+  @@index([tier, interval])
+  @@map("plans")
+}
+
+model PlanGateway {
+  id              String         @id @default(uuid())
+  planId          String
+  gateway         PaymentGateway
+  externalPriceId String
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, gateway])
+  @@map("plan_gateways")
+}
+
+model CustomerGateway {
+  id                 String         @id @default(uuid())
+  userId             String
+  gateway            PaymentGateway
+  externalCustomerId String         // ID do customer no gateway (ex: cus_xxx no Stripe)
+  metadata           Json?          // Informações extras do gateway se necessário
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gateway])
+  @@index([userId])
+  @@index([gateway, externalCustomerId])
+  @@map("customer_gateways")
+}
+
+// ========================================
+// CUPONS
+// ========================================
+
+model Coupon {
+  id              String    @id @default(uuid())
+  code            String    @unique
+  discountPercent Int // 10 = 10%, 50 = 50%
+  maxUses         Int? // null = ilimitado
+  currentUses     Int       @default(0)
+  validFrom       DateTime?
+  validUntil      DateTime?
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  subscriptions Subscription[]
+
+  @@index([code, active])
+  @@map("coupons")
+}
+
+// ========================================
+// ASSINATURAS
+// ========================================
+
+model Subscription {
+  id     String             @id @default(uuid())
+  userId String
+  planId String
+  status SubscriptionStatus @default(PENDING)
+
+  // Datas
+  startsAt    DateTime
+  endsAt      DateTime
+  renewsAt    DateTime?
+  cancelledAt DateTime?
+  suspendedAt DateTime?
+
+  // Trial
+  trialEndsAt    DateTime?
+  trialStartedAt DateTime?
+
+  // Preços
+  originalPrice   Decimal @db.Decimal(10, 2) // Preço do plano sem desconto
+  contractedPrice Decimal @db.Decimal(10, 2) // Preço final (com desconto se houver)
+
+  // Cupom
+  couponId      String?
+  couponApplied Boolean @default(false) // Se já usou o cupom (uma vez só)
+
+  // Pagamento
+  isRecurring      Boolean         @default(true)
+  preferredGateway PaymentGateway?
+
+  // Upgrade/Downgrade
+  scheduledPlanId     String?
+  scheduledChangeAt   DateTime?
+  scheduledChangeType ScheduledChangeType?
+
+  // Pro-rata (pra upgrade imediato)
+  lastProrationAmount Decimal?  @db.Decimal(10, 2)
+  lastProrationDate   DateTime?
+
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan          Plan      @relation("PlanSubscriptions", fields: [planId], references: [id])
+  scheduledPlan Plan?     @relation("ScheduledPlanChanges", fields: [scheduledPlanId], references: [id])
+  coupon        Coupon?   @relation(fields: [couponId], references: [id])
+  payments      Payment[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([renewsAt])
+  @@index([trialEndsAt])
+  @@index([userId, status])
+  @@map("subscriptions")
+}
+
+// ========================================
+// PAGAMENTOS
+// ========================================
+
+model Payment {
+  id                String         @id @default(uuid())
+  subscriptionId    String
+  gateway           PaymentGateway
+  externalPaymentId String? // ID do pagamento no gateway
+
+  amount   Decimal       @db.Decimal(10, 2)
+  currency String        @default("BRL")
+  status   PaymentStatus @default(PENDING)
+
+  // Pro-rata info
+  isProration     Boolean @default(false)
+  prorationReason String? // "upgrade", "plan_change"
+
+  // Tentativas
+  attemptCount  Int       @default(0)
+  lastAttemptAt DateTime?
+  nextAttemptAt DateTime?
+
+  // Datas
+  paidAt     DateTime?
+  failedAt   DateTime?
+  refundedAt DateTime?
+
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([gateway, externalPaymentId])
+  @@index([nextAttemptAt]) // Pra job de retry
+  @@map("payments")
+}
+
+model Seed {
+  id         String   @id @default(uuid())
+  name       String   @unique
+  executedAt DateTime @default(now())
+
+  @@map("_seeds")
 }

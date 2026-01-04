@@ -55,6 +55,10 @@ export class UsersService {
     }
 
     // *** Register new user
+    if (registerUser.password) {
+      registerUser.password = await bcrypt.hash(registerUser.password, 10);
+    }
+
     const user = await this.usersRepository.register(registerUser);
 
     // *** Login user
@@ -155,6 +159,6 @@ export class UsersService {
 
   async checkProfileCompleted(userId: string) {
     const user = await this.usersRepository.findById(userId);
-    return user?.profile_completed ?? false;
+    return user?.profileCompleted ?? false;
   }
 }

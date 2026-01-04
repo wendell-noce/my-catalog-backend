@@ -13,6 +13,42 @@ CREATE TYPE "PageType" AS ENUM ('BLOG', 'ABOUT', 'CONTACT', 'CUSTOM', 'FAQ', 'TE
 -- CreateEnum
 CREATE TYPE "PostStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'SCHEDULED', 'ARCHIVED');
 
+-- CreateEnum
+CREATE TYPE "Gender" AS ENUM ('MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY');
+
+-- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('USER', 'ADMIN', 'MODERATOR');
+
+-- CreateEnum
+CREATE TYPE "AddressType" AS ENUM ('MAIN', 'DELIVERY', 'BILLING', 'WORK');
+
+-- CreateEnum
+CREATE TYPE "StoreAddressType" AS ENUM ('PHYSICAL', 'BILLING');
+
+-- CreateEnum
+CREATE TYPE "PaymentGateway" AS ENUM ('STRIPE', 'MERCADOPAGO', 'ASAAS', 'PAGSEGURO');
+
+-- CreateEnum
+CREATE TYPE "PaymentMethod" AS ENUM ('CREDIT_CARD', 'PIX', 'BOLETO');
+
+-- CreateEnum
+CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'PROCESSING', 'APPROVED', 'FAILED', 'REFUNDED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "PaymentType" AS ENUM ('INITIAL', 'RENEWAL', 'UPGRADE', 'DOWNGRADE');
+
+-- CreateEnum
+CREATE TYPE "SubscriptionStatus" AS ENUM ('PENDING', 'TRIAL', 'TRIAL_EXPIRED', 'ACTIVE', 'PAST_DUE', 'CANCELLED', 'SUSPENDED', 'EXPIRED');
+
+-- CreateEnum
+CREATE TYPE "ScheduledChangeType" AS ENUM ('UPGRADE', 'DOWNGRADE');
+
+-- CreateEnum
+CREATE TYPE "PlanTier" AS ENUM ('BASIC', 'PRO', 'ENTERPRISE');
+
+-- CreateEnum
+CREATE TYPE "PlanInterval" AS ENUM ('MONTHLY', 'YEARLY');
+
 -- CreateTable
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
@@ -20,11 +56,23 @@ CREATE TABLE "users" (
     "email" TEXT NOT NULL,
     "avatar" TEXT,
     "password" TEXT NOT NULL,
+    "profile_completed" BOOLEAN NOT NULL DEFAULT false,
+    "document" TEXT,
+    "cellPhone" TEXT,
+    "birthDate" TIMESTAMP(3),
+    "gender" "Gender",
+    "role" "UserRole" NOT NULL DEFAULT 'USER',
     "provider" TEXT DEFAULT 'local',
     "providerId" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "emailVerified" BOOLEAN NOT NULL DEFAULT false,
+    "emailVerifiedAt" TIMESTAMP(3),
+    "phoneVerified" BOOLEAN NOT NULL DEFAULT false,
+    "phoneVerifiedAt" TIMESTAMP(3),
+    "lastLoginAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
@@ -61,10 +109,11 @@ CREATE TABLE "addresses" (
     "city" TEXT NOT NULL,
     "state" TEXT NOT NULL,
     "zip_code" TEXT NOT NULL,
-    "country" TEXT NOT NULL,
+    "country" TEXT NOT NULL DEFAULT 'Brasil',
     "complement" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "deleted_at" TIMESTAMP(3),
 
     CONSTRAINT "addresses_pkey" PRIMARY KEY ("id")
 );
@@ -73,6 +122,8 @@ CREATE TABLE "addresses" (
 CREATE TABLE "user_addresses" (
     "user_id" TEXT NOT NULL,
     "address_id" TEXT NOT NULL,
+    "type" "AddressType" NOT NULL DEFAULT 'MAIN',
+    "is_default" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "user_addresses_pkey" PRIMARY KEY ("user_id","address_id")
 );
@@ -81,8 +132,37 @@ CREATE TABLE "user_addresses" (
 CREATE TABLE "store_addresses" (
     "store_id" TEXT NOT NULL,
     "address_id" TEXT NOT NULL,
+    "type" "StoreAddressType" NOT NULL DEFAULT 'PHYSICAL',
+    "is_default" BOOLEAN NOT NULL DEFAULT true,
 
     CONSTRAINT "store_addresses_pkey" PRIMARY KEY ("store_id","address_id")
+);
+
+-- CreateTable
+CREATE TABLE "email_verifications" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "code" TEXT,
+    "used" BOOLEAN NOT NULL DEFAULT false,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "email_verifications_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "phone_verifications" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "phone" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "used" BOOLEAN NOT NULL DEFAULT false,
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "phone_verifications_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -93,11 +173,6 @@ CREATE TABLE "stores" (
     "slug" TEXT NOT NULL,
     "url" TEXT NOT NULL,
     "description" TEXT,
-    "address" TEXT,
-    "city" TEXT,
-    "state" TEXT,
-    "postalCode" TEXT,
-    "country" TEXT,
     "email" TEXT,
     "logo" TEXT,
     "websiteUrl" TEXT,
@@ -110,6 +185,7 @@ CREATE TABLE "stores" (
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "stores_pkey" PRIMARY KEY ("id")
 );
@@ -282,7 +358,7 @@ CREATE TABLE "blog_categories" (
 -- CreateTable
 CREATE TABLE "linktrees" (
     "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
+    "storeId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "backgroundColor" TEXT,
@@ -306,6 +382,115 @@ CREATE TABLE "links" (
 );
 
 -- CreateTable
+CREATE TABLE "plans" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "tier" "PlanTier" NOT NULL,
+    "interval" "PlanInterval" NOT NULL,
+    "price" DECIMAL(10,2) NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'BRL',
+    "intervalCount" INTEGER NOT NULL DEFAULT 1,
+    "isRecurring" BOOLEAN NOT NULL DEFAULT true,
+    "features" JSONB,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "plans_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "plan_gateways" (
+    "id" TEXT NOT NULL,
+    "planId" TEXT NOT NULL,
+    "gateway" "PaymentGateway" NOT NULL,
+    "externalPriceId" TEXT NOT NULL,
+
+    CONSTRAINT "plan_gateways_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "coupons" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "discountPercent" INTEGER NOT NULL,
+    "maxUses" INTEGER,
+    "currentUses" INTEGER NOT NULL DEFAULT 0,
+    "validFrom" TIMESTAMP(3),
+    "validUntil" TIMESTAMP(3),
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "coupons_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "subscriptions" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "planId" TEXT NOT NULL,
+    "status" "SubscriptionStatus" NOT NULL DEFAULT 'PENDING',
+    "startsAt" TIMESTAMP(3) NOT NULL,
+    "endsAt" TIMESTAMP(3) NOT NULL,
+    "renewsAt" TIMESTAMP(3),
+    "cancelledAt" TIMESTAMP(3),
+    "suspendedAt" TIMESTAMP(3),
+    "trialEndsAt" TIMESTAMP(3),
+    "trialStartedAt" TIMESTAMP(3),
+    "originalPrice" DECIMAL(10,2) NOT NULL,
+    "contractedPrice" DECIMAL(10,2) NOT NULL,
+    "couponId" TEXT,
+    "couponApplied" BOOLEAN NOT NULL DEFAULT false,
+    "isRecurring" BOOLEAN NOT NULL DEFAULT true,
+    "preferredGateway" "PaymentGateway",
+    "scheduledPlanId" TEXT,
+    "scheduledChangeAt" TIMESTAMP(3),
+    "scheduledChangeType" "ScheduledChangeType",
+    "lastProrationAmount" DECIMAL(10,2),
+    "lastProrationDate" TIMESTAMP(3),
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "subscriptions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "payments" (
+    "id" TEXT NOT NULL,
+    "subscriptionId" TEXT NOT NULL,
+    "gateway" "PaymentGateway" NOT NULL,
+    "externalPaymentId" TEXT,
+    "amount" DECIMAL(10,2) NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'BRL',
+    "status" "PaymentStatus" NOT NULL DEFAULT 'PENDING',
+    "isProration" BOOLEAN NOT NULL DEFAULT false,
+    "prorationReason" TEXT,
+    "attemptCount" INTEGER NOT NULL DEFAULT 0,
+    "lastAttemptAt" TIMESTAMP(3),
+    "nextAttemptAt" TIMESTAMP(3),
+    "paidAt" TIMESTAMP(3),
+    "failedAt" TIMESTAMP(3),
+    "refundedAt" TIMESTAMP(3),
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "payments_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "_seeds" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "executedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "_seeds_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "_ProductToProductTag" (
     "A" TEXT NOT NULL,
     "B" TEXT NOT NULL,
@@ -315,6 +500,9 @@ CREATE TABLE "_ProductToProductTag" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_document_key" ON "users"("document");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "refresh_tokens_token_key" ON "refresh_tokens"("token");
@@ -333,6 +521,30 @@ CREATE INDEX "password_reset_tokens_token_idx" ON "password_reset_tokens"("token
 
 -- CreateIndex
 CREATE INDEX "password_reset_tokens_expires_at_idx" ON "password_reset_tokens"("expires_at");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "email_verifications_token_key" ON "email_verifications"("token");
+
+-- CreateIndex
+CREATE INDEX "email_verifications_userId_idx" ON "email_verifications"("userId");
+
+-- CreateIndex
+CREATE INDEX "email_verifications_token_idx" ON "email_verifications"("token");
+
+-- CreateIndex
+CREATE INDEX "email_verifications_expiresAt_idx" ON "email_verifications"("expiresAt");
+
+-- CreateIndex
+CREATE INDEX "phone_verifications_userId_idx" ON "phone_verifications"("userId");
+
+-- CreateIndex
+CREATE INDEX "phone_verifications_phone_idx" ON "phone_verifications"("phone");
+
+-- CreateIndex
+CREATE INDEX "phone_verifications_code_idx" ON "phone_verifications"("code");
+
+-- CreateIndex
+CREATE INDEX "phone_verifications_expiresAt_idx" ON "phone_verifications"("expiresAt");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "stores_slug_key" ON "stores"("slug");
@@ -422,6 +634,51 @@ CREATE INDEX "blog_categories_storeId_idx" ON "blog_categories"("storeId");
 CREATE INDEX "blog_categories_slug_idx" ON "blog_categories"("slug");
 
 -- CreateIndex
+CREATE INDEX "plans_active_idx" ON "plans"("active");
+
+-- CreateIndex
+CREATE INDEX "plans_tier_interval_idx" ON "plans"("tier", "interval");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "plan_gateways_planId_gateway_key" ON "plan_gateways"("planId", "gateway");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "coupons_code_key" ON "coupons"("code");
+
+-- CreateIndex
+CREATE INDEX "coupons_code_active_idx" ON "coupons"("code", "active");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_userId_idx" ON "subscriptions"("userId");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_status_idx" ON "subscriptions"("status");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_renewsAt_idx" ON "subscriptions"("renewsAt");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_trialEndsAt_idx" ON "subscriptions"("trialEndsAt");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_userId_status_idx" ON "subscriptions"("userId", "status");
+
+-- CreateIndex
+CREATE INDEX "payments_subscriptionId_idx" ON "payments"("subscriptionId");
+
+-- CreateIndex
+CREATE INDEX "payments_status_idx" ON "payments"("status");
+
+-- CreateIndex
+CREATE INDEX "payments_gateway_externalPaymentId_idx" ON "payments"("gateway", "externalPaymentId");
+
+-- CreateIndex
+CREATE INDEX "payments_nextAttemptAt_idx" ON "payments"("nextAttemptAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "_seeds_name_key" ON "_seeds"("name");
+
+-- CreateIndex
 CREATE INDEX "_ProductToProductTag_B_index" ON "_ProductToProductTag"("B");
 
 -- AddForeignKey
@@ -441,6 +698,12 @@ ALTER TABLE "store_addresses" ADD CONSTRAINT "store_addresses_store_id_fkey" FOR
 
 -- AddForeignKey
 ALTER TABLE "store_addresses" ADD CONSTRAINT "store_addresses_address_id_fkey" FOREIGN KEY ("address_id") REFERENCES "addresses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "email_verifications" ADD CONSTRAINT "email_verifications_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "phone_verifications" ADD CONSTRAINT "phone_verifications_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "stores" ADD CONSTRAINT "stores_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -482,10 +745,28 @@ ALTER TABLE "blog_posts" ADD CONSTRAINT "blog_posts_categoryId_fkey" FOREIGN KEY
 ALTER TABLE "blog_categories" ADD CONSTRAINT "blog_categories_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "stores"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "linktrees" ADD CONSTRAINT "linktrees_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "linktrees" ADD CONSTRAINT "linktrees_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "stores"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "links" ADD CONSTRAINT "links_linktreeId_fkey" FOREIGN KEY ("linktreeId") REFERENCES "linktrees"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "plan_gateways" ADD CONSTRAINT "plan_gateways_planId_fkey" FOREIGN KEY ("planId") REFERENCES "plans"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planId_fkey" FOREIGN KEY ("planId") REFERENCES "plans"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_scheduledPlanId_fkey" FOREIGN KEY ("scheduledPlanId") REFERENCES "plans"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_couponId_fkey" FOREIGN KEY ("couponId") REFERENCES "coupons"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "payments" ADD CONSTRAINT "payments_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "subscriptions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_ProductToProductTag" ADD CONSTRAINT "_ProductToProductTag_A_fkey" FOREIGN KEY ("A") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;

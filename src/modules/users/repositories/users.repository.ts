@@ -25,7 +25,7 @@ export class UsersRepository {
     gender: true,
     role: true,
     isActive: true,
-    profile_completed: true,
+    profileCompleted: true,
   } satisfies Prisma.UserSelect;
 
   async create(data: CreateUserDto): Promise<{ message: string }> {

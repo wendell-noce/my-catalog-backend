@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as bodyParser from 'body-parser';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
@@ -65,6 +66,8 @@ async function bootstrap(): Promise<void> {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
+
+  app.use('/webhooks/stripe', bodyParser.raw({ type: 'application/json' }));
 
   // eslint-disable-next-line no-console
   console.log(`Application is running on: http://localhost:${port}`);

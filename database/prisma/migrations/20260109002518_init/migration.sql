@@ -26,25 +26,16 @@ CREATE TYPE "AddressType" AS ENUM ('MAIN', 'DELIVERY', 'BILLING', 'WORK');
 CREATE TYPE "StoreAddressType" AS ENUM ('PHYSICAL', 'BILLING');
 
 -- CreateEnum
-CREATE TYPE "PaymentGateway" AS ENUM ('STRIPE', 'MERCADOPAGO', 'ASAAS', 'PAGSEGURO');
-
--- CreateEnum
 CREATE TYPE "PaymentMethod" AS ENUM ('CREDIT_CARD', 'PIX', 'BOLETO');
 
 -- CreateEnum
 CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'PROCESSING', 'APPROVED', 'FAILED', 'REFUNDED', 'CANCELLED');
 
 -- CreateEnum
-CREATE TYPE "PaymentType" AS ENUM ('INITIAL', 'RENEWAL', 'UPGRADE', 'DOWNGRADE');
+CREATE TYPE "SubscriptionStatus" AS ENUM ('FREE', 'TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELLED', 'INCOMPLETE', 'INCOMPLETE_EXPIRED', 'UNPAID', 'PAUSED');
 
 -- CreateEnum
-CREATE TYPE "SubscriptionStatus" AS ENUM ('PENDING', 'TRIAL', 'TRIAL_EXPIRED', 'ACTIVE', 'PAST_DUE', 'CANCELLED', 'SUSPENDED', 'EXPIRED');
-
--- CreateEnum
-CREATE TYPE "ScheduledChangeType" AS ENUM ('UPGRADE', 'DOWNGRADE');
-
--- CreateEnum
-CREATE TYPE "PlanTier" AS ENUM ('BASIC', 'PRO', 'ENTERPRISE');
+CREATE TYPE "PlanTier" AS ENUM ('STARTER', 'PRO', 'UNLIMITED');
 
 -- CreateEnum
 CREATE TYPE "PlanInterval" AS ENUM ('MONTHLY', 'YEARLY');
@@ -70,6 +61,9 @@ CREATE TABLE "users" (
     "phoneVerified" BOOLEAN NOT NULL DEFAULT false,
     "phoneVerifiedAt" TIMESTAMP(3),
     "lastLoginAt" TIMESTAMP(3),
+    "stripeCustomerId" TEXT,
+    "subscriptionStatus" "SubscriptionStatus" NOT NULL DEFAULT 'FREE',
+    "currentPlanTier" "PlanTier" NOT NULL DEFAULT 'STARTER',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
@@ -390,8 +384,10 @@ CREATE TABLE "plans" (
     "interval" "PlanInterval" NOT NULL,
     "price" DECIMAL(10,2) NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'BRL',
+    "stripePriceId" TEXT NOT NULL,
+    "stripeProductId" TEXT,
     "intervalCount" INTEGER NOT NULL DEFAULT 1,
-    "isRecurring" BOOLEAN NOT NULL DEFAULT true,
+    "trialDays" INTEGER,
     "features" JSONB,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -401,20 +397,13 @@ CREATE TABLE "plans" (
 );
 
 -- CreateTable
-CREATE TABLE "plan_gateways" (
-    "id" TEXT NOT NULL,
-    "planId" TEXT NOT NULL,
-    "gateway" "PaymentGateway" NOT NULL,
-    "externalPriceId" TEXT NOT NULL,
-
-    CONSTRAINT "plan_gateways_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "coupons" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
-    "discountPercent" INTEGER NOT NULL,
+    "stripeCouponId" TEXT,
+    "stripePromotionId" TEXT,
+    "discountPercent" INTEGER,
+    "discountAmount" DECIMAL(10,2),
     "maxUses" INTEGER,
     "currentUses" INTEGER NOT NULL DEFAULT 0,
     "validFrom" TIMESTAMP(3),
@@ -431,25 +420,20 @@ CREATE TABLE "subscriptions" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "planId" TEXT NOT NULL,
-    "status" "SubscriptionStatus" NOT NULL DEFAULT 'PENDING',
-    "startsAt" TIMESTAMP(3) NOT NULL,
-    "endsAt" TIMESTAMP(3) NOT NULL,
-    "renewsAt" TIMESTAMP(3),
-    "cancelledAt" TIMESTAMP(3),
-    "suspendedAt" TIMESTAMP(3),
-    "trialEndsAt" TIMESTAMP(3),
-    "trialStartedAt" TIMESTAMP(3),
-    "originalPrice" DECIMAL(10,2) NOT NULL,
-    "contractedPrice" DECIMAL(10,2) NOT NULL,
+    "status" "SubscriptionStatus" NOT NULL DEFAULT 'FREE',
+    "stripeSubscriptionId" TEXT,
+    "stripeCustomerId" TEXT,
+    "currentPeriodStart" TIMESTAMP(3) NOT NULL,
+    "currentPeriodEnd" TIMESTAMP(3) NOT NULL,
+    "cancelAt" TIMESTAMP(3),
+    "canceledAt" TIMESTAMP(3),
+    "endedAt" TIMESTAMP(3),
+    "trialStart" TIMESTAMP(3),
+    "trialEnd" TIMESTAMP(3),
+    "amount" DECIMAL(10,2) NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'BRL',
     "couponId" TEXT,
-    "couponApplied" BOOLEAN NOT NULL DEFAULT false,
-    "isRecurring" BOOLEAN NOT NULL DEFAULT true,
-    "preferredGateway" "PaymentGateway",
-    "scheduledPlanId" TEXT,
-    "scheduledChangeAt" TIMESTAMP(3),
-    "scheduledChangeType" "ScheduledChangeType",
-    "lastProrationAmount" DECIMAL(10,2),
-    "lastProrationDate" TIMESTAMP(3),
+    "cancelAtPeriodEnd" BOOLEAN NOT NULL DEFAULT false,
     "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -461,16 +445,17 @@ CREATE TABLE "subscriptions" (
 CREATE TABLE "payments" (
     "id" TEXT NOT NULL,
     "subscriptionId" TEXT NOT NULL,
-    "gateway" "PaymentGateway" NOT NULL,
-    "externalPaymentId" TEXT,
+    "stripeInvoiceId" TEXT,
+    "stripePaymentIntentId" TEXT,
+    "stripeChargeId" TEXT,
     "amount" DECIMAL(10,2) NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'BRL',
     "status" "PaymentStatus" NOT NULL DEFAULT 'PENDING',
-    "isProration" BOOLEAN NOT NULL DEFAULT false,
-    "prorationReason" TEXT,
+    "invoiceUrl" TEXT,
+    "receiptUrl" TEXT,
+    "paymentMethod" TEXT,
     "attemptCount" INTEGER NOT NULL DEFAULT 0,
     "lastAttemptAt" TIMESTAMP(3),
-    "nextAttemptAt" TIMESTAMP(3),
     "paidAt" TIMESTAMP(3),
     "failedAt" TIMESTAMP(3),
     "refundedAt" TIMESTAMP(3),
@@ -479,6 +464,21 @@ CREATE TABLE "payments" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "payments_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "webhook_events" (
+    "id" TEXT NOT NULL,
+    "stripeEventId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "data" JSONB NOT NULL,
+    "processed" BOOLEAN NOT NULL DEFAULT false,
+    "processedAt" TIMESTAMP(3),
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "lastError" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "webhook_events_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -503,6 +503,15 @@ CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_document_key" ON "users"("document");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_stripeCustomerId_key" ON "users"("stripeCustomerId");
+
+-- CreateIndex
+CREATE INDEX "users_stripeCustomerId_idx" ON "users"("stripeCustomerId");
+
+-- CreateIndex
+CREATE INDEX "users_subscriptionStatus_idx" ON "users"("subscriptionStatus");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "refresh_tokens_token_key" ON "refresh_tokens"("token");
@@ -634,19 +643,28 @@ CREATE INDEX "blog_categories_storeId_idx" ON "blog_categories"("storeId");
 CREATE INDEX "blog_categories_slug_idx" ON "blog_categories"("slug");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "plans_stripePriceId_key" ON "plans"("stripePriceId");
+
+-- CreateIndex
 CREATE INDEX "plans_active_idx" ON "plans"("active");
 
 -- CreateIndex
 CREATE INDEX "plans_tier_interval_idx" ON "plans"("tier", "interval");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "plan_gateways_planId_gateway_key" ON "plan_gateways"("planId", "gateway");
+CREATE INDEX "plans_stripePriceId_idx" ON "plans"("stripePriceId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "coupons_code_key" ON "coupons"("code");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "coupons_stripeCouponId_key" ON "coupons"("stripeCouponId");
+
+-- CreateIndex
 CREATE INDEX "coupons_code_active_idx" ON "coupons"("code", "active");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriptions_stripeSubscriptionId_key" ON "subscriptions"("stripeSubscriptionId");
 
 -- CreateIndex
 CREATE INDEX "subscriptions_userId_idx" ON "subscriptions"("userId");
@@ -655,13 +673,16 @@ CREATE INDEX "subscriptions_userId_idx" ON "subscriptions"("userId");
 CREATE INDEX "subscriptions_status_idx" ON "subscriptions"("status");
 
 -- CreateIndex
-CREATE INDEX "subscriptions_renewsAt_idx" ON "subscriptions"("renewsAt");
+CREATE INDEX "subscriptions_stripeSubscriptionId_idx" ON "subscriptions"("stripeSubscriptionId");
 
 -- CreateIndex
-CREATE INDEX "subscriptions_trialEndsAt_idx" ON "subscriptions"("trialEndsAt");
+CREATE INDEX "subscriptions_currentPeriodEnd_idx" ON "subscriptions"("currentPeriodEnd");
 
 -- CreateIndex
 CREATE INDEX "subscriptions_userId_status_idx" ON "subscriptions"("userId", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "payments_stripeInvoiceId_key" ON "payments"("stripeInvoiceId");
 
 -- CreateIndex
 CREATE INDEX "payments_subscriptionId_idx" ON "payments"("subscriptionId");
@@ -670,10 +691,22 @@ CREATE INDEX "payments_subscriptionId_idx" ON "payments"("subscriptionId");
 CREATE INDEX "payments_status_idx" ON "payments"("status");
 
 -- CreateIndex
-CREATE INDEX "payments_gateway_externalPaymentId_idx" ON "payments"("gateway", "externalPaymentId");
+CREATE INDEX "payments_stripeInvoiceId_idx" ON "payments"("stripeInvoiceId");
 
 -- CreateIndex
-CREATE INDEX "payments_nextAttemptAt_idx" ON "payments"("nextAttemptAt");
+CREATE INDEX "payments_stripePaymentIntentId_idx" ON "payments"("stripePaymentIntentId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "webhook_events_stripeEventId_key" ON "webhook_events"("stripeEventId");
+
+-- CreateIndex
+CREATE INDEX "webhook_events_type_idx" ON "webhook_events"("type");
+
+-- CreateIndex
+CREATE INDEX "webhook_events_processed_idx" ON "webhook_events"("processed");
+
+-- CreateIndex
+CREATE INDEX "webhook_events_stripeEventId_idx" ON "webhook_events"("stripeEventId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "_seeds_name_key" ON "_seeds"("name");
@@ -751,16 +784,10 @@ ALTER TABLE "linktrees" ADD CONSTRAINT "linktrees_storeId_fkey" FOREIGN KEY ("st
 ALTER TABLE "links" ADD CONSTRAINT "links_linktreeId_fkey" FOREIGN KEY ("linktreeId") REFERENCES "linktrees"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "plan_gateways" ADD CONSTRAINT "plan_gateways_planId_fkey" FOREIGN KEY ("planId") REFERENCES "plans"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planId_fkey" FOREIGN KEY ("planId") REFERENCES "plans"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_scheduledPlanId_fkey" FOREIGN KEY ("scheduledPlanId") REFERENCES "plans"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_couponId_fkey" FOREIGN KEY ("couponId") REFERENCES "coupons"("id") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -1,187 +1,172 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { PaymentGateway, SubscriptionStatus } from '@prisma/client';
+import { Injectable } from '@nestjs/common';
 import { ResponseHelper } from 'src/common/helpers/response.helper';
-import { PaymentService } from 'src/modules/payment/payment.service';
+import { PlanRepository } from 'src/modules/plan/repository/plan.repository';
+import { StripeService } from 'src/modules/stripe/service/stripe.service';
+import { UsersRepository } from 'src/modules/users/repositories/users.repository';
+import Stripe from 'stripe';
 import { CreateSubscriptionDto } from '../dto/create-subscription.dto';
+import { UpdateSubscriptionDto } from '../dto/update-subscription.dto';
+
+import { SubscriptionStatus } from '@prisma/client';
 import { SubscriptionRepository } from '../repository/subscription.repository';
 
 @Injectable()
 export class SubscriptionService {
   constructor(
-    private readonly paymentService: PaymentService,
+    private readonly stripeService: StripeService,
+    private readonly userRepository: UsersRepository,
+    private readonly planRepository: PlanRepository,
     private readonly subscriptionRepository: SubscriptionRepository,
   ) {}
 
-  async create(dto: CreateSubscriptionDto) {
-    const { userId, planId } = dto;
+  async checkout(userId: string, planId: string) {
+    // *** Get plan and user info
+    const plan = await this.planRepository.findById(planId);
+    if (!plan) {
+      throw new Error('O plano selecionado não foi encontrado');
+    }
 
-    // *** Get Stripe Plans
-    const plan = await this.subscriptionRepository.findPlanWithGateway(
-      planId,
-      PaymentGateway.STRIPE,
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new Error('Usuário não encontrado');
+    }
+
+    // *** Check if user has a Stripe Customer ID, if not, create one
+    let stripeId = user.stripeCustomerId;
+    if (!stripeId) {
+      const customer = await this.stripeService.createCustomer(
+        user.email,
+        user.name,
+        user.id,
+      );
+      await this.userRepository.updateStripeId(user.id, customer.id);
+      stripeId = customer.id;
+    }
+
+    // *** Create checkout session
+    const session = await this.stripeService.createSubscriptionSession(
+      stripeId,
+      plan.stripePriceId,
+      { userId: user.id, planId: plan.id }, // *** [ Essencial para o Webhook saber o que fazer depois ] ***
     );
 
-    if (!plan) {
-      throw new NotFoundException('Plano não encontrado');
+    return ResponseHelper.success({ url: session.url });
+  }
+
+  create(createSubscriptionDto: CreateSubscriptionDto) {
+    return `This action adds a new subscription ${createSubscriptionDto}`;
+  }
+
+  findAll() {
+    return `This action returns all subscription`;
+  }
+
+  findOne(id: number) {
+    return `This action returns a #${id} subscription`;
+  }
+
+  update(id: number, updateSubscriptionDto: UpdateSubscriptionDto) {
+    return `This action updates a #${id} subscription ${updateSubscriptionDto}`;
+  }
+
+  remove(id: number) {
+    return `This action removes a #${id} subscription`;
+  }
+
+  async handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+    const subscription = await this.stripeService.stripe.subscriptions.retrieve(
+      session.subscription as string,
+      {
+        expand: ['latest_invoice.lines.data'],
+      },
+    );
+
+    if (
+      !subscription.latest_invoice ||
+      typeof subscription.latest_invoice === 'string'
+    ) {
+      throw new Error('Invoice não expandida');
     }
 
-    if (!plan.active) {
-      throw new BadRequestException('Plano não está ativo');
-    }
+    const line = subscription.latest_invoice.lines.data[0];
 
-    const planGateway = plan.planGateways[0];
-    if (!planGateway) {
-      throw new NotFoundException(
-        'Plano não configurado no gateway de pagamento',
+    const periodStart = line.period.start;
+    const periodEnd = line.period.end;
+
+    // *** Get the necessary data from the session and save/activate the subscription in your DB
+    const userId = session.metadata?.userId;
+    const planId = session.metadata?.planId;
+
+    if (!userId || !planId) {
+      throw new Error(
+        'Falta informação no metada de retorno do Stripe Checkout Session',
       );
     }
 
-    // *** Get user By ID
-    const user = await this.subscriptionRepository.findUser(userId);
+    // *** get plan to fetch amount and period info
+    const subscriptionData = {
+      userId: userId,
+      planId: planId,
+      stripeSubscriptionId: subscription.id,
+      stripeCustomerId: subscription.customer as string,
+      stripePriceId: subscription.items.data[0].price.id,
+      stripeItemId: subscription.items.data[0].id,
+      status: SubscriptionStatus.ACTIVE,
+      amount: session.amount_total ? session.amount_total / 100 : 0,
+      currentPeriodStart: new Date(periodStart * 1000),
+      currentPeriodEnd: new Date(periodEnd * 1000),
+    };
 
-    if (!user) {
-      throw new NotFoundException('Usuário não encontrado');
+    return await this.subscriptionRepository.upsertSubscription(
+      subscriptionData,
+    );
+  }
+
+  async handleRenewal(event: Stripe.Event) {
+    const invoice = event.data.object as any;
+
+    const stripeSubscriptionId = invoice.subscription as string;
+
+    if (!stripeSubscriptionId) {
+      console.log(`Fatura ${invoice.id} não possui assinatura vinculada.`);
+      return;
     }
 
-    // *** Set Stripe Customer
-    const stripeCustomer = await this.getCustomer(user);
+    const subscription =
+      (await this.stripeService.stripe.subscriptions.retrieve(
+        stripeSubscriptionId,
+      )) as Stripe.Subscription;
 
-    // *** Save CustomerGateway in Database
-    const gatewayCustomer = await this.setGatewayCustomer(
-      userId,
-      stripeCustomer,
-    );
-    if (!gatewayCustomer) {
-      throw new NotFoundException('Usuário não encontrado');
+    const periodStart = (subscription as any).current_period_start;
+    const periodEnd = (subscription as any).current_period_end;
+
+    if (!periodStart || !periodEnd) {
+      throw new Error('Datas de período não encontradas na assinatura');
     }
 
-    // *** Create Subscription in Stripe (trial for 7 days)
-    const stripeSubscription: any = await this.createStripeSubscription(
-      stripeCustomer,
-      planGateway,
-      userId,
-      planId,
-    );
-
-    // *** Set Dates
-    const dates = this.setDates();
-
-    // *** Set Subscription in database
-    const subscription: any = await this.saveLocalSubscription(
-      userId,
-      planId,
-      new Date(),
-      dates.trialEndsAt,
-      dates.endsAt,
-      plan,
-    );
-
-    return ResponseHelper.success(
+    return await this.subscriptionRepository.updateByStripeId(
+      stripeSubscriptionId,
       {
-        data: {
-          subscription,
-          stripeSubscriptionId: stripeSubscription.id,
-        },
+        status: SubscriptionStatus.ACTIVE,
+        currentPeriodStart: new Date(periodStart * 1000),
+        currentPeriodEnd: new Date(periodEnd * 1000),
+        amount: invoice.amount_paid / 100,
       },
-      'Assinatura criada com sucesso! Trial de 7 dias iniciado.',
     );
   }
 
-  private setDates() {
-    const now = new Date();
-    const trialEndsAt = new Date(now);
-    trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+  async handleCancellation(subscription: Stripe.Subscription) {
+    const newStatus = subscription.status.toUpperCase() as SubscriptionStatus;
 
-    const endsAt = new Date(trialEndsAt);
-    endsAt.setMonth(endsAt.getMonth() + 1);
-
-    return { trialEndsAt, endsAt };
-  }
-
-  private async getCustomer(user: any) {
-    return await this.paymentService.createCustomer({
-      // ← RETURN
-      email: user.email,
-      name: user.name,
-      metadata: { userId: user.id },
+    return await this.subscriptionRepository.updateByStripeId(subscription.id, {
+      status: newStatus,
+      cancelAtPeriodEnd: subscription.cancel_at_period_end,
+      endedAt: subscription.ended_at
+        ? new Date(subscription.ended_at * 1000)
+        : null,
+      canceledAt: subscription.canceled_at
+        ? new Date(subscription.canceled_at * 1000)
+        : null,
     });
-  }
-
-  private async setGatewayCustomer(userId: string, stripeCustomer: any) {
-    return await this.subscriptionRepository.findOrCreateCustomerGateway(
-      userId,
-      PaymentGateway.STRIPE,
-      stripeCustomer.id,
-    );
-  }
-
-  private async createSubscription(
-    stripeCustomer: any,
-    planGateway: any,
-    userId: string,
-    planId: string,
-  ) {
-    try {
-      const result = await this.paymentService.createSubscription({
-        customerId: stripeCustomer.id,
-        priceId: planGateway.externalPriceId,
-        trialPeriodDays: 7,
-        metadata: { userId, planId },
-      });
-      return result;
-    } catch (error) {
-      console.error('Stripe error:', error);
-      console.error('customerId:', stripeCustomer.id);
-      console.error('priceId:', planGateway.externalPriceId);
-      throw error;
-    }
-  }
-
-  private async createStripeSubscription(
-    stripeCustomer: any,
-    planGateway: any,
-    userId: string,
-    planId: string,
-  ) {
-    const result = await this.createSubscription(
-      stripeCustomer,
-      planGateway,
-      userId,
-      planId,
-    );
-
-    return result;
-  }
-
-  private async saveLocalSubscription(
-    userId: string,
-    planId: string,
-    now: Date,
-    trialEndsAt: Date,
-    endsAt: Date,
-    plan: any,
-  ) {
-    return await this.subscriptionRepository.createSubscription({
-      userId,
-      planId,
-      status: SubscriptionStatus.TRIAL,
-      startsAt: now,
-      endsAt,
-      trialStartedAt: now,
-      trialEndsAt,
-      originalPrice: Number(plan.price),
-      contractedPrice: Number(plan.price),
-      preferredGateway: PaymentGateway.STRIPE,
-    });
-  }
-
-  async getSubscriptionsByUserId(userId: string) {
-    const plans =
-      await this.subscriptionRepository.findActiveSubscriptionByUserId(userId);
-    return ResponseHelper.success(plans, 'Assinaturas listadas com sucesso');
   }
 }

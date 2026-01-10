@@ -1,51 +1,34 @@
-import { Controller, Delete, Get, Param } from '@nestjs/common';
-import { PaymentService } from '../../payment/payment.service';
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { PlanInterval, PlanTier } from '@prisma/client';
 import { ApiFindAllPlans } from '../decorators/api-docs.decorator';
 import { PlanService } from '../service/plan.service';
 
 @Controller('plans')
 export class PlanController {
-  constructor(
-    private readonly planService: PlanService,
-    private readonly paymentService: PaymentService,
-  ) {}
+  constructor(private readonly planService: PlanService) {}
 
   @Get()
   @ApiFindAllPlans()
-  findAll() {
-    return this.planService.findAll();
+  findAll(
+    @Query('tier') tier?: PlanTier,
+    @Query('interval') interval?: PlanInterval,
+  ) {
+    return this.planService.findAll({ tier, interval });
   }
 
-  @Get('test-stripe')
-  async testStripe() {
-    try {
-      const customer = await this.paymentService.createCustomer({
-        email: 'teste@email.com',
-        name: 'João Teste',
-        metadata: { test: true },
-      });
+  @Get('tier/:tier')
+  findByTier(@Param('tier') tier: PlanTier) {
+    return this.planService.findByTier(tier);
+  }
 
-      return {
-        success: true,
-        message: 'Stripe conectado com sucesso!',
-        customer,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: 'Erro ao conectar com Stripe',
-        error: error.message,
-      };
-    }
+  @Get('interval/:interval')
+  findByInterval(@Param('interval') interval: PlanInterval) {
+    return this.planService.findByInterval(interval);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.planService.findOne(+id);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.planService.remove(+id);
+    // Mudou de +id para string
+    return this.planService.findById(id);
   }
 }

@@ -33,7 +33,9 @@ function setupSwagger(app: INestApplication): void {
 }
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+  });
 
   //***  Global Version to API
   app.setGlobalPrefix('api/v1');

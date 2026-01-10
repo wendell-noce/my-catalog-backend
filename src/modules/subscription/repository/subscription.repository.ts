@@ -1,86 +1,57 @@
-import { Injectable } from '@nestjs/common';
-
-import { PaymentGateway, SubscriptionStatus } from '@prisma/client';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from 'src/shared/prisma/prisma.service';
+import { CreateSubscriptionDto } from '../dto/create-subscription.dto';
 
 @Injectable()
 export class SubscriptionRepository {
   constructor(private prisma: PrismaService) {}
-
-  async findPlanWithGateway(planId: string, gateway: PaymentGateway) {
-    return this.prisma.plan.findUnique({
-      where: { id: planId },
-      include: {
-        planGateways: {
-          where: { gateway },
+  async upsertSubscription(data: CreateSubscriptionDto) {
+    try {
+      return await this.prisma.subscription.upsert({
+        where: { userId: data.userId },
+        update: {
+          planId: data.planId,
+          stripeSubscriptionId: data.stripeSubscriptionId,
+          stripeCustomerId: data.stripeCustomerId,
+          stripePriceId: data.stripePriceId,
+          stripeItemId: data.stripeItemId,
+          status: data.status,
+          amount: data.amount,
+          currentPeriodStart: data.currentPeriodStart,
+          currentPeriodEnd: data.currentPeriodEnd,
+          canceledAt: null,
+          endedAt: null,
+          cancelAtPeriodEnd: false,
         },
-      },
-    });
+        create: {
+          userId: data.userId,
+          planId: data.planId,
+          stripeSubscriptionId: data.stripeSubscriptionId,
+          stripeCustomerId: data.stripeCustomerId,
+          stripePriceId: data.stripePriceId,
+          stripeItemId: data.stripeItemId,
+          status: data.status,
+          amount: data.amount,
+          currentPeriodStart: data.currentPeriodStart,
+          currentPeriodEnd: data.currentPeriodEnd,
+        },
+      });
+    } catch (error) {
+      console.error(
+        `❌ Erro no Upsert da Assinatura para o usuário ${data.userId}:`,
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Erro ao salvar os dados da assinatura no banco de dados.',
+      );
+    }
   }
 
-  async findOrCreateCustomerGateway(
-    userId: string,
-    gateway: PaymentGateway,
-    externalCustomerId: string,
-  ) {
-    return this.prisma.customerGateway.upsert({
-      where: {
-        userId_gateway: {
-          userId,
-          gateway,
-        },
-      },
-      create: {
-        userId,
-        gateway,
-        externalCustomerId,
-      },
-      update: {},
-    });
-  }
-
-  async createSubscription(data: {
-    userId: string;
-    planId: string;
-    status: SubscriptionStatus;
-    startsAt: Date;
-    endsAt: Date;
-    trialEndsAt?: Date;
-    trialStartedAt?: Date;
-    originalPrice: number;
-    contractedPrice: number;
-    preferredGateway: PaymentGateway;
-  }) {
-    return this.prisma.subscription.create({
-      data,
-      include: {
-        plan: true,
-        user: true,
-      },
-    });
-  }
-
-  async findUser(userId: string) {
-    return this.prisma.user.findUnique({ where: { id: userId } });
-  }
-
-  async findActiveSubscriptionByUserId(userId: string) {
-    return this.prisma.subscription.findFirst({
-      where: {
-        userId,
-        status: {
-          in: ['TRIAL', 'ACTIVE'],
-        },
-        user: {
-          deletedAt: null,
-        },
-      },
-      include: {
-        plan: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+  async updateByStripeId(stripeId: string, data: any) {
+    return await this.prisma.subscription.update({
+      where: { stripeSubscriptionId: stripeId },
+      data: data,
     });
   }
 }

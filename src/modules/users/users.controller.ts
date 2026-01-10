@@ -10,8 +10,8 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../../common/guard/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import {
   ApiCheckProfileCompleted,
   ApiCreateUser,

@@ -85,13 +85,6 @@ enum StoreAddressType {
   BILLING
 }
 
-enum PaymentGateway {
-  STRIPE
-  MERCADOPAGO
-  ASAAS
-  PAGSEGURO
-}
-
 enum PaymentMethod {
   CREDIT_CARD
   PIX
@@ -107,33 +100,22 @@ enum PaymentStatus {
   CANCELLED
 }
 
-enum PaymentType {
-  INITIAL
-  RENEWAL
-  UPGRADE
-  DOWNGRADE
-}
-
 enum SubscriptionStatus {
-  PENDING // Criada mas ainda não iniciada
-  TRIAL // Em período de trial (7 dias)
-  TRIAL_EXPIRED // Trial acabou, aguardando pagamento
-  ACTIVE // Ativa e paga
-  PAST_DUE // Pagamento atrasado (ainda tem acesso)
-  CANCELLED // Cancelada pelo usuário
-  SUSPENDED // Suspensa por falta de pagamento (sem acesso)
-  EXPIRED // Período acabou
-}
-
-enum ScheduledChangeType {
-  UPGRADE
-  DOWNGRADE
+  FREE           // Usuário sem assinatura
+  TRIALING       // Em período de trial (7 dias)
+  ACTIVE         // Assinatura ativa e paga
+  PAST_DUE       // Pagamento atrasado (ainda tem acesso temporário)
+  CANCELLED      // Cancelada mas ainda tem acesso até fim do período
+  INCOMPLETE     // Pagamento inicial falhou
+  INCOMPLETE_EXPIRED // Pagamento não completado a tempo
+  UNPAID         // Múltiplas tentativas falharam
+  PAUSED         // Pausada temporariamente (feature do Stripe)
 }
 
 enum PlanTier {
-  BASIC
+  STARTER
   PRO
-  ENTERPRISE
+  UNLIMITED
 }
 
 enum PlanInterval {
@@ -165,11 +147,17 @@ model User {
   phoneVerified    Boolean   @default(false)
   phoneVerifiedAt  DateTime?
   lastLoginAt      DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  deletedAt        DateTime?
+  
+  // Stripe Integration
+  stripeCustomerId String? @unique // Customer ID on Stripe
+  subscriptionStatus SubscriptionStatus @default(FREE)
+  currentPlanTier    PlanTier           @default(STARTER)
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  // Relations existentes
+  // Relations
   stores              Store[]
   userAddresses       UserAddress[]
   blogPosts           BlogPost[]
@@ -177,9 +165,10 @@ model User {
   passwordResetTokens PasswordResetToken[]
   emailVerifications  EmailVerification[]
   phoneVerifications  PhoneVerification[]
-  customerGateways CustomerGateway[]
-  subscriptions Subscription[]
+  subscriptions       Subscription[]
 
+  @@index([stripeCustomerId])
+  @@index([subscriptionStatus])
   @@map("users")
 }
 
@@ -596,61 +585,37 @@ model Link {
 }
 
 // ========================================
-// PLANOS
+// PLANOS - STRIPE ONLY
 // ========================================
 
 model Plan {
   id            String       @id @default(uuid())
-  name          String
+  name          String       // "Plano Basic", "Plano Pro"
   description   String?
-  tier          PlanTier
-  interval      PlanInterval
+  tier          PlanTier     // FREE, BASIC, PRO, ENTERPRISE
+  interval      PlanInterval // MONTHLY, YEARLY
   price         Decimal      @db.Decimal(10, 2)
   currency      String       @default("BRL")
-  intervalCount Int          @default(1)
-  isRecurring   Boolean      @default(true)
-  features      Json?
-  active        Boolean      @default(true)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  
+  // Stripe Integration
+  stripePriceId   String  @unique // price_xxx do Stripe
+  stripeProductId String? // prod_xxx do Stripe (opcional)
+  
+  // Config
+  intervalCount Int     @default(1) // 1 = todo mês, 3 = trimestral
+  trialDays     Int?    // Dias de trial (ex: 7)
+  features      Json?   // Array de features ["Feature 1", "Feature 2"]
+  active        Boolean @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  subscriptions    Subscription[] @relation("PlanSubscriptions")
-  scheduledChanges Subscription[] @relation("ScheduledPlanChanges")
-  planGateways     PlanGateway[]
+  subscriptions Subscription[]
 
   @@index([active])
   @@index([tier, interval])
+  @@index([stripePriceId])
   @@map("plans")
-}
-
-model PlanGateway {
-  id              String         @id @default(uuid())
-  planId          String
-  gateway         PaymentGateway
-  externalPriceId String
-
-  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
-
-  @@unique([planId, gateway])
-  @@map("plan_gateways")
-}
-
-model CustomerGateway {
-  id                 String         @id @default(uuid())
-  userId             String
-  gateway            PaymentGateway
-  externalCustomerId String         // ID do customer no gateway (ex: cus_xxx no Stripe)
-  metadata           Json?          // Informações extras do gateway se necessário
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, gateway])
-  @@index([userId])
-  @@index([gateway, externalCustomerId])
-  @@map("customer_gateways")
 }
 
 // ========================================
@@ -658,16 +623,24 @@ model CustomerGateway {
 // ========================================
 
 model Coupon {
-  id              String    @id @default(uuid())
-  code            String    @unique
-  discountPercent Int // 10 = 10%, 50 = 50%
-  maxUses         Int? // null = ilimitado
-  currentUses     Int       @default(0)
-  validFrom       DateTime?
-  validUntil      DateTime?
-  active          Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                String    @id @default(uuid())
+  code              String    @unique
+  
+  // Stripe Integration
+  stripeCouponId    String?   @unique // ID do cupom no Stripe
+  stripePromotionId String?   // ID da promotion code no Stripe
+  
+  discountPercent   Int?      // 10 = 10%, 50 = 50%
+  discountAmount    Decimal?  @db.Decimal(10, 2) // Desconto fixo (ex: R$ 10)
+  
+  maxUses           Int?      // null = ilimitado
+  currentUses       Int       @default(0)
+  validFrom         DateTime?
+  validUntil        DateTime?
+  active            Boolean   @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   subscriptions Subscription[]
 
@@ -676,95 +649,94 @@ model Coupon {
 }
 
 // ========================================
-// ASSINATURAS
+// ASSINATURAS - STRIPE ONLY
 // ========================================
 
 model Subscription {
   id     String             @id @default(uuid())
-  userId String
+  userId String             @unique
   planId String
-  status SubscriptionStatus @default(PENDING)
+  status SubscriptionStatus @default(FREE)
 
-  // Datas
-  startsAt    DateTime
-  endsAt      DateTime
-  renewsAt    DateTime?
-  cancelledAt DateTime?
-  suspendedAt DateTime?
+  // --- Integração Stripe ---
+  stripeSubscriptionId String? @unique // sub_xxxx
+  stripeCustomerId     String?         // cus_xxxx
+  stripePriceId        String?         // price_xxxx (O que o usuário está pagando hoje)
+  stripeItemId         String?         // si_xxxx (ID fixo da Stripe para upgrades/downgrades)
+  
+  // --- Datas de Ciclo ---
+  currentPeriodStart DateTime // Data em que o mês/ano atual começou
+  currentPeriodEnd   DateTime // Data em que o acesso expira se não renovar
+  
+  // --- Controle de Cancelamento ---
+  cancelAtPeriodEnd Boolean   @default(false) // Se o usuário cancelou, mas ainda tem acesso até o fim do ciclo
+  cancelAt          DateTime? // Data agendada para o cancelamento definitivo
+  canceledAt        DateTime? // Data exata em que ele clicou em cancelar
+  endedAt           DateTime? // Data em que o acesso foi cortado de fato
+  
+  // --- Trial (Período de Teste) ---
+  trialStart DateTime?
+  trialEnd   DateTime?
 
-  // Trial
-  trialEndsAt    DateTime?
-  trialStartedAt DateTime?
+  // --- Valores e Moeda ---
+  amount   Decimal @db.Decimal(10, 2) // Ex: 49.90
+  currency String  @default("BRL")
 
-  // Preços
-  originalPrice   Decimal @db.Decimal(10, 2) // Preço do plano sem desconto
-  contractedPrice Decimal @db.Decimal(10, 2) // Preço final (com desconto se houver)
-
-  // Cupom
-  couponId      String?
-  couponApplied Boolean @default(false) // Se já usou o cupom (uma vez só)
-
-  // Pagamento
-  isRecurring      Boolean         @default(true)
-  preferredGateway PaymentGateway?
-
-  // Upgrade/Downgrade
-  scheduledPlanId     String?
-  scheduledChangeAt   DateTime?
-  scheduledChangeType ScheduledChangeType?
-
-  // Pro-rata (pra upgrade imediato)
-  lastProrationAmount Decimal?  @db.Decimal(10, 2)
-  lastProrationDate   DateTime?
-
-  metadata  Json?
+  // --- Extras ---
+  couponId  String?
+  metadata  Json?      // Para guardar qualquer info extra que venha do Webhook
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan          Plan      @relation("PlanSubscriptions", fields: [planId], references: [id])
-  scheduledPlan Plan?     @relation("ScheduledPlanChanges", fields: [scheduledPlanId], references: [id])
-  coupon        Coupon?   @relation(fields: [couponId], references: [id])
-  payments      Payment[]
+  // --- Relações ---
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan     Plan      @relation(fields: [planId], references: [id])
+  coupon   Coupon?   @relation(fields: [couponId], references: [id])
+  payments Payment[]
 
+  // --- Índices para Performance ---
   @@index([userId])
   @@index([status])
-  @@index([renewsAt])
-  @@index([trialEndsAt])
-  @@index([userId, status])
+  @@index([stripeSubscriptionId])
+  @@index([currentPeriodEnd])
   @@map("subscriptions")
 }
 
 // ========================================
-// PAGAMENTOS
+// PAGAMENTOS - STRIPE ONLY
 // ========================================
 
 model Payment {
-  id                String         @id @default(uuid())
-  subscriptionId    String
-  gateway           PaymentGateway
-  externalPaymentId String? // ID do pagamento no gateway
+  id             String        @id @default(uuid())
+  subscriptionId String
+  
+  // Stripe Integration
+  stripeInvoiceId       String? @unique // in_xxx
+  stripePaymentIntentId String? // pi_xxx
+  stripeChargeId        String? // ch_xxx
 
   amount   Decimal       @db.Decimal(10, 2)
   currency String        @default("BRL")
   status   PaymentStatus @default(PENDING)
 
-  // Pro-rata info
-  isProration     Boolean @default(false)
-  prorationReason String? // "upgrade", "plan_change"
-
-  // Tentativas
+  // Informações extras
+  invoiceUrl    String? // URL da fatura no Stripe
+  receiptUrl    String? // URL do recibo
+  paymentMethod String? // Tipo de método (card, boleto, etc)
+  
+  // Tentativas (Stripe tenta automaticamente, mas registramos)
   attemptCount  Int       @default(0)
   lastAttemptAt DateTime?
-  nextAttemptAt DateTime?
-
-  // Datas
+  
+  // Datas importantes
   paidAt     DateTime?
   failedAt   DateTime?
   refundedAt DateTime?
-
+  
+  // Metadata
   metadata  Json?
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -772,9 +744,30 @@ model Payment {
 
   @@index([subscriptionId])
   @@index([status])
-  @@index([gateway, externalPaymentId])
-  @@index([nextAttemptAt]) // Pra job de retry
+  @@index([stripeInvoiceId])
+  @@index([stripePaymentIntentId])
   @@map("payments")
+}
+
+// ========================================
+// WEBHOOK EVENTS (Opcional mas recomendado)
+// ========================================
+
+model WebhookEvent {
+  id              String   @id @default(uuid())
+  stripeEventId   String   @unique // evt_xxx
+  type            String   // customer.subscription.created, invoice.payment_succeeded, etc
+  data            Json     // Payload completo do Stripe
+  processed       Boolean  @default(false)
+  processedAt     DateTime?
+  attempts        Int      @default(0)
+  lastError       String?  @db.Text
+  createdAt       DateTime @default(now())
+  
+  @@index([type])
+  @@index([processed])
+  @@index([stripeEventId])
+  @@map("webhook_events")
 }
 
 model Seed {

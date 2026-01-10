@@ -320,3 +320,12 @@ Este projeto está sob a licença MIT.
 ⭐️ Se este projeto te ajudou, deixe uma estrela!
 
 **Feito com ❤️ e [NestJS](https://nestjs.com/)**
+
+stripe listen --forward-to localhost:3000/webhooks/stripe
+
+```
+
+**Saída esperada:**
+```
+
+> Ready! Your webhook signing secret is whsec_xxxxxxxxxxxxx (^C to quit)

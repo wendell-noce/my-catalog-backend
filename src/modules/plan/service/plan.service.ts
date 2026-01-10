@@ -1,21 +1,47 @@
-import { Injectable } from '@nestjs/common';
-import { ResponseHelper } from 'src/common/helpers/response.helper';
-import { PlanRepository } from './../repository/plan.repository';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PlanInterval, PlanTier } from '@prisma/client';
+import { PlanRepository } from '../repository/plan.repository';
 
 @Injectable()
 export class PlanService {
-  constructor(private readonly PlanRepository: PlanRepository) {}
+  constructor(private readonly planRepository: PlanRepository) {}
 
-  async findAll() {
-    const plans = await this.PlanRepository.findAll();
-    return ResponseHelper.success(plans, 'Planos listados com sucesso');
+  async findAll(filters?: { tier?: PlanTier; interval?: PlanInterval }) {
+    return this.planRepository.findAll(filters);
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} plan`;
+  async findById(id: string) {
+    const plan = await this.planRepository.findById(id);
+
+    if (!plan) {
+      throw new NotFoundException(`Plano com ID ${id} não encontrado`);
+    }
+
+    return plan;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} plan`;
+  async findByStripePriceId(stripePriceId: string) {
+    const plan = await this.planRepository.findByStripePriceId(stripePriceId);
+
+    if (!plan) {
+      throw new NotFoundException(
+        `Plano com stripePriceId ${stripePriceId} não encontrado`,
+      );
+    }
+
+    return plan;
+  }
+
+  async findByTier(tier: PlanTier) {
+    return this.planRepository.findByTier(tier);
+  }
+
+  async findByInterval(interval: PlanInterval) {
+    return this.planRepository.findByInterval(interval);
+  }
+
+  async deactivate(id: string) {
+    const plan = await this.findById(id); // Valida se existe
+    return this.planRepository.deactivate(plan.id);
   }
 }

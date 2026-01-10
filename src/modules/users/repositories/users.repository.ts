@@ -26,6 +26,7 @@ export class UsersRepository {
     role: true,
     isActive: true,
     profileCompleted: true,
+    stripeCustomerId: true,
   } satisfies Prisma.UserSelect;
 
   async create(data: CreateUserDto): Promise<{ message: string }> {
@@ -259,6 +260,17 @@ export class UsersRepository {
             },
           },
         },
+      },
+    });
+  }
+
+  async updateStripeId(userId: string, stripeCustomerId: string) {
+    return await this.prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        stripeCustomerId: stripeCustomerId,
       },
     });
   }

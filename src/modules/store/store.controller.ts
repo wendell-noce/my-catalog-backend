@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ResponseHelper } from 'src/common/helpers/response.helper';
-import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
+import { JwtAuthGuard } from '../../common/guard/jwt-auth.guard';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { StoreService } from './service/store.service';
 

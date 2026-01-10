@@ -101,15 +101,15 @@ enum PaymentStatus {
 }
 
 enum SubscriptionStatus {
-  FREE           // Usuário sem assinatura
-  TRIALING       // Em período de trial (7 dias)
-  ACTIVE         // Assinatura ativa e paga
-  PAST_DUE       // Pagamento atrasado (ainda tem acesso temporário)
-  CANCELLED      // Cancelada mas ainda tem acesso até fim do período
-  INCOMPLETE     // Pagamento inicial falhou
+  FREE // Usuário sem assinatura
+  TRIALING // Em período de trial (7 dias)
+  ACTIVE // Assinatura ativa e paga
+  PAST_DUE // Pagamento atrasado (ainda tem acesso temporário)
+  CANCELLED // Cancelada mas ainda tem acesso até fim do período
+  INCOMPLETE // Pagamento inicial falhou
   INCOMPLETE_EXPIRED // Pagamento não completado a tempo
-  UNPAID         // Múltiplas tentativas falharam
-  PAUSED         // Pausada temporariamente (feature do Stripe)
+  UNPAID // Múltiplas tentativas falharam
+  PAUSED // Pausada temporariamente (feature do Stripe)
 }
 
 enum PlanTier {
@@ -147,12 +147,12 @@ model User {
   phoneVerified    Boolean   @default(false)
   phoneVerifiedAt  DateTime?
   lastLoginAt      DateTime?
-  
+
   // Stripe Integration
-  stripeCustomerId String? @unique // Customer ID on Stripe
+  stripeCustomerId   String?            @unique // Customer ID on Stripe
   subscriptionStatus SubscriptionStatus @default(FREE)
   currentPlanTier    PlanTier           @default(STARTER)
-  
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -589,24 +589,24 @@ model Link {
 // ========================================
 
 model Plan {
-  id            String       @id @default(uuid())
-  name          String       // "Plano Basic", "Plano Pro"
-  description   String?
-  tier          PlanTier     // FREE, BASIC, PRO, ENTERPRISE
-  interval      PlanInterval // MONTHLY, YEARLY
-  price         Decimal      @db.Decimal(10, 2)
-  currency      String       @default("BRL")
-  
+  id          String       @id @default(uuid())
+  name        String // "Plano Basic", "Plano Pro"
+  description String?
+  tier        PlanTier // FREE, BASIC, PRO, ENTERPRISE
+  interval    PlanInterval // MONTHLY, YEARLY
+  price       Decimal      @db.Decimal(10, 2)
+  currency    String       @default("BRL")
+
   // Stripe Integration
   stripePriceId   String  @unique // price_xxx do Stripe
   stripeProductId String? // prod_xxx do Stripe (opcional)
-  
+
   // Config
   intervalCount Int     @default(1) // 1 = todo mês, 3 = trimestral
-  trialDays     Int?    // Dias de trial (ex: 7)
-  features      Json?   // Array de features ["Feature 1", "Feature 2"]
+  trialDays     Int? // Dias de trial (ex: 7)
+  features      Json? // Array de features ["Feature 1", "Feature 2"]
   active        Boolean @default(true)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -623,22 +623,22 @@ model Plan {
 // ========================================
 
 model Coupon {
-  id                String    @id @default(uuid())
-  code              String    @unique
-  
+  id   String @id @default(uuid())
+  code String @unique
+
   // Stripe Integration
-  stripeCouponId    String?   @unique // ID do cupom no Stripe
-  stripePromotionId String?   // ID da promotion code no Stripe
-  
-  discountPercent   Int?      // 10 = 10%, 50 = 50%
-  discountAmount    Decimal?  @db.Decimal(10, 2) // Desconto fixo (ex: R$ 10)
-  
-  maxUses           Int?      // null = ilimitado
-  currentUses       Int       @default(0)
-  validFrom         DateTime?
-  validUntil        DateTime?
-  active            Boolean   @default(true)
-  
+  stripeCouponId    String? @unique // ID do cupom no Stripe
+  stripePromotionId String? // ID da promotion code no Stripe
+
+  discountPercent Int? // 10 = 10%, 50 = 50%
+  discountAmount  Decimal? @db.Decimal(10, 2) // Desconto fixo (ex: R$ 10)
+
+  maxUses     Int? // null = ilimitado
+  currentUses Int       @default(0)
+  validFrom   DateTime?
+  validUntil  DateTime?
+  active      Boolean   @default(true)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -660,20 +660,20 @@ model Subscription {
 
   // --- Integração Stripe ---
   stripeSubscriptionId String? @unique // sub_xxxx
-  stripeCustomerId     String?         // cus_xxxx
-  stripePriceId        String?         // price_xxxx (O que o usuário está pagando hoje)
-  stripeItemId         String?         // si_xxxx (ID fixo da Stripe para upgrades/downgrades)
-  
+  stripeCustomerId     String? // cus_xxxx
+  stripePriceId        String? // price_xxxx (O que o usuário está pagando hoje)
+  stripeItemId         String? // si_xxxx (ID fixo da Stripe para upgrades/downgrades)
+
   // --- Datas de Ciclo ---
   currentPeriodStart DateTime // Data em que o mês/ano atual começou
   currentPeriodEnd   DateTime // Data em que o acesso expira se não renovar
-  
+
   // --- Controle de Cancelamento ---
   cancelAtPeriodEnd Boolean   @default(false) // Se o usuário cancelou, mas ainda tem acesso até o fim do ciclo
   cancelAt          DateTime? // Data agendada para o cancelamento definitivo
   canceledAt        DateTime? // Data exata em que ele clicou em cancelar
   endedAt           DateTime? // Data em que o acesso foi cortado de fato
-  
+
   // --- Trial (Período de Teste) ---
   trialStart DateTime?
   trialEnd   DateTime?
@@ -683,9 +683,9 @@ model Subscription {
   currency String  @default("BRL")
 
   // --- Extras ---
-  couponId  String?
-  metadata  Json?      // Para guardar qualquer info extra que venha do Webhook
-  
+  couponId String?
+  metadata Json? // Para guardar qualquer info extra que venha do Webhook
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -708,9 +708,9 @@ model Subscription {
 // ========================================
 
 model Payment {
-  id             String        @id @default(uuid())
+  id             String @id @default(uuid())
   subscriptionId String
-  
+
   // Stripe Integration
   stripeInvoiceId       String? @unique // in_xxx
   stripePaymentIntentId String? // pi_xxx
@@ -724,19 +724,19 @@ model Payment {
   invoiceUrl    String? // URL da fatura no Stripe
   receiptUrl    String? // URL do recibo
   paymentMethod String? // Tipo de método (card, boleto, etc)
-  
+
   // Tentativas (Stripe tenta automaticamente, mas registramos)
   attemptCount  Int       @default(0)
   lastAttemptAt DateTime?
-  
+
   // Datas importantes
   paidAt     DateTime?
   failedAt   DateTime?
   refundedAt DateTime?
-  
+
   // Metadata
-  metadata  Json?
-  
+  metadata Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -754,16 +754,16 @@ model Payment {
 // ========================================
 
 model WebhookEvent {
-  id              String   @id @default(uuid())
-  stripeEventId   String   @unique // evt_xxx
-  type            String   // customer.subscription.created, invoice.payment_succeeded, etc
-  data            Json     // Payload completo do Stripe
-  processed       Boolean  @default(false)
-  processedAt     DateTime?
-  attempts        Int      @default(0)
-  lastError       String?  @db.Text
-  createdAt       DateTime @default(now())
-  
+  id            String    @id @default(uuid())
+  stripeEventId String    @unique // evt_xxx
+  type          String // customer.subscription.created, invoice.payment_succeeded, etc
+  data          Json // Payload completo do Stripe
+  processed     Boolean   @default(false)
+  processedAt   DateTime?
+  attempts      Int       @default(0)
+  lastError     String?   @db.Text
+  createdAt     DateTime  @default(now())
+
   @@index([type])
   @@index([processed])
   @@index([stripeEventId])

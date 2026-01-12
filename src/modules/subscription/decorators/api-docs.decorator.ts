@@ -9,7 +9,7 @@ import { CreateCheckoutSessionDto } from '../dto/create-checkout-session.dto';
 
 export function ApiCreateCheckoutSession() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiBearerAuth('JWT-auth'),
     ApiOperation({
       summary: 'Create a checkout session',
       description:

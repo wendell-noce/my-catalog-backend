@@ -11,7 +11,7 @@ import { RegisterUserDto } from '../dto/register-user.dto';
 
 export function ApiGetUserById() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiBearerAuth('JWT-auth'),
     ApiOperation({
       summary: 'Get user by ID',
       description: 'Retrieve a specific user by their ID',
@@ -86,7 +86,7 @@ export function ApiRegisterUser() {
 
 export function ApiUserProfile() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiBearerAuth('JWT-auth'),
     ApiOperation({
       summary: 'Get current user profile',
     }),
@@ -118,7 +118,7 @@ export function ApiUserProfile() {
 
 export function ApiFindAllUsers() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiBearerAuth('JWT-auth'),
     ApiOperation({
       summary: 'Get all users',
       description: 'Retrieve a list of all users',
@@ -143,7 +143,7 @@ export function ApiFindAllUsers() {
 
 export function ApiUpdateUser() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiBearerAuth('JWT-auth'),
     ApiOperation({
       summary: 'Update user',
       description: 'Update user details by ID',
@@ -167,7 +167,7 @@ export function ApiUpdateUser() {
 
 export function ApiRestoreUser() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiBearerAuth('JWT-auth'),
     ApiOperation({
       summary: 'Restore deleted or blocked user',
       description: 'Restore a soft-deleted user by clearing deletedAt',
@@ -195,7 +195,7 @@ export function ApiRestoreUser() {
 
 export function ApiDeleteUser() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiBearerAuth('JWT-auth'),
     ApiOperation({
       summary: 'Delete user (soft delete)',
       description: 'Soft delete a user by setting deletedAt timestamp',
@@ -212,7 +212,7 @@ export function ApiDeleteUser() {
 
 export function findWithAddressById() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiBearerAuth('JWT-auth'),
     ApiOperation({
       summary: 'Get user with address by ID',
       description:
@@ -259,7 +259,7 @@ export function findWithAddressById() {
 
 export function ApiCheckProfileCompleted() {
   return applyDecorators(
-    ApiBearerAuth(),
+    ApiBearerAuth('JWT-auth'),
     ApiOperation({
       summary: 'Check if user profile is completed',
       description:

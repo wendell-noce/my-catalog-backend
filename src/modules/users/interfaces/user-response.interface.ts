@@ -1,4 +1,4 @@
-import { Gender, UserRole } from '@prisma/client';
+import { Gender, SubscriptionStatus, UserRole } from '@prisma/client';
 
 export interface UserResponse {
   id: string;
@@ -15,4 +15,5 @@ export interface UserResponse {
   phoneVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
+  subscriptionStatus?: SubscriptionStatus;
 }

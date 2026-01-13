@@ -6,14 +6,15 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { SubscriptionStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'node:crypto';
+import { ResponseHelper } from 'src/common/helpers/response.helper';
 import { UsersService } from 'src/modules/users/service/users.service';
 import { PrismaService } from 'src/shared/prisma/prisma.service';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { LoginDto } from '../dto/login.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
-import { AuthResponse } from '../interfaces/auth-response.interface';
 import { Tokens } from '../interfaces/tokens.interface';
 import { ValidateResetTokenResponse } from '../interfaces/validate-reset-token.interface';
 import { RefreshTokenRepository } from '../repositories/refresh-token.repository';
@@ -28,8 +29,8 @@ export class AuthService {
     private refreshTokenRepository: RefreshTokenRepository,
   ) {}
 
-  async login(loginDto: LoginDto): Promise<AuthResponse> {
-    const user = await this.usersService.findByEmail(loginDto.email);
+  async login(loginDto: LoginDto) {
+    const user: any = await this.usersService.findByEmail(loginDto.email);
 
     if (!user || !user.password) {
       throw new UnauthorizedException('Invalid credentials');
@@ -51,7 +52,7 @@ export class AuthService {
     const tokens = await this.generateTokens(user.id, user.email);
     await this.saveRefreshToken(user.id, tokens.refreshToken);
 
-    return {
+    return ResponseHelper.success({
       user: {
         id: user.id,
         email: user.email,
@@ -59,8 +60,22 @@ export class AuthService {
         avatar: user.avatar,
         role: user.role,
       },
+      plan: {
+        active: user.subscriptions?.[0]?.status === SubscriptionStatus.ACTIVE,
+        createdAt: user.subscriptions?.[0]?.createdAt || null,
+        trialStart: user.subscriptions?.[0]?.trialStart || null,
+        trialEnd: user.subscriptions?.[0]?.trialEnd || null,
+        currentPeriodStart: user.subscriptions?.[0]?.currentPeriodStart || null,
+        currentPeriodEnd: user.subscriptions?.[0]?.currentPeriodEnd || null,
+        cancelAtPeriodEnd: user.subscriptions?.[0]?.cancelAtPeriodEnd || null,
+        cancelAt: user.subscriptions?.[0]?.cancelAt || null,
+        canceledAt: user.subscriptions?.[0]?.canceledAt || null,
+        name: user.subscriptions?.[0]?.plan?.name || null,
+        price: user.subscriptions?.[0]?.plan?.price || null,
+        tier: user.subscriptions?.[0]?.plan?.tier || null,
+      },
       ...tokens,
-    };
+    });
   }
 
   public async generateTokens(userId: string, email: string): Promise<Tokens> {

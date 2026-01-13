@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Gender, UserRole } from '@prisma/client';
+import { Gender, SubscriptionStatus, UserRole } from '@prisma/client';
 
 export class UserResponseDto {
   @ApiProperty()
@@ -40,4 +40,7 @@ export class UserResponseDto {
 
   @ApiProperty()
   updatedAt: Date;
+
+  @ApiProperty()
+  subscriptionStatus?: SubscriptionStatus;
 }

@@ -1,5 +1,5 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { AddressType, Prisma, User } from '@prisma/client';
+import { AddressType, Prisma } from '@prisma/client';
 import { UpdateAddressDto } from 'src/modules/addresses/dto/update-address.dto';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import { CreateUserDto } from '../dto/create-user.dto';
@@ -78,9 +78,16 @@ export class UsersRepository {
     }
   }
 
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(email: string) {
     return this.prisma.user.findUnique({
       where: { email },
+      include: {
+        subscriptions: {
+          include: {
+            plan: true,
+          },
+        },
+      },
     });
   }
 

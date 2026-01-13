@@ -37,13 +37,9 @@ export class SubscriptionRepository {
         },
       });
     } catch (error) {
-      console.error(
-        `❌ Erro no Upsert da Assinatura para o usuário ${data.userId}:`,
-        error,
-      );
-
+      console.error(`❌ Erro ao salvar assinatura:`, error);
       throw new InternalServerErrorException(
-        'Erro ao salvar os dados da assinatura no banco de dados.',
+        'Erro no banco de dados ao salvar assinatura.',
       );
     }
   }

@@ -150,9 +150,7 @@ model User {
 
   // Stripe Integration
   stripeCustomerId   String?            @unique // Customer ID on Stripe
-  subscriptionStatus SubscriptionStatus @default(FREE)
-  currentPlanTier    PlanTier           @default(STARTER)
-
+  
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -167,8 +165,7 @@ model User {
   phoneVerifications  PhoneVerification[]
   subscriptions       Subscription[]
 
-  @@index([stripeCustomerId])
-  @@index([subscriptionStatus])
+  @@index([stripeCustomerId])  
   @@map("users")
 }
 

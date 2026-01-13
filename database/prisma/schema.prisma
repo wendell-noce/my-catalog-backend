@@ -149,8 +149,8 @@ model User {
   lastLoginAt      DateTime?
 
   // Stripe Integration
-  stripeCustomerId   String?            @unique // Customer ID on Stripe
-  
+  stripeCustomerId String? @unique // Customer ID on Stripe
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -165,7 +165,7 @@ model User {
   phoneVerifications  PhoneVerification[]
   subscriptions       Subscription[]
 
-  @@index([stripeCustomerId])  
+  @@index([stripeCustomerId])
   @@map("users")
 }
 

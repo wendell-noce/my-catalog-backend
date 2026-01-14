@@ -30,7 +30,8 @@ export class AuthService {
   ) {}
 
   async login(loginDto: LoginDto) {
-    const user: any = await this.usersService.findByEmail(loginDto.email);
+    const user: any = await this.usersService.getUserAuthData(loginDto.email);
+    console.log(user);
 
     if (!user || !user.password) {
       throw new UnauthorizedException('Invalid credentials');
@@ -53,27 +54,8 @@ export class AuthService {
     await this.saveRefreshToken(user.id, tokens.refreshToken);
 
     return ResponseHelper.success({
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        avatar: user.avatar,
-        role: user.role,
-      },
-      plan: {
-        active: user.subscriptions?.[0]?.status === SubscriptionStatus.ACTIVE,
-        createdAt: user.subscriptions?.[0]?.createdAt || null,
-        trialStart: user.subscriptions?.[0]?.trialStart || null,
-        trialEnd: user.subscriptions?.[0]?.trialEnd || null,
-        currentPeriodStart: user.subscriptions?.[0]?.currentPeriodStart || null,
-        currentPeriodEnd: user.subscriptions?.[0]?.currentPeriodEnd || null,
-        cancelAtPeriodEnd: user.subscriptions?.[0]?.cancelAtPeriodEnd || null,
-        cancelAt: user.subscriptions?.[0]?.cancelAt || null,
-        canceledAt: user.subscriptions?.[0]?.canceledAt || null,
-        name: user.subscriptions?.[0]?.plan?.name || null,
-        price: user.subscriptions?.[0]?.plan?.price || null,
-        tier: user.subscriptions?.[0]?.plan?.tier || null,
-      },
+      hasActivePlan:
+        user.subscriptions?.[0]?.status === SubscriptionStatus.ACTIVE,
       ...tokens,
     });
   }

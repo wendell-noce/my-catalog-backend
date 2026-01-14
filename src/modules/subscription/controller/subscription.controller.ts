@@ -19,6 +19,12 @@ import { SubscriptionService } from '../service/subscription.service';
 export class SubscriptionController {
   constructor(private readonly subscriptionService: SubscriptionService) {}
 
+  @Get('me/')
+  @UseGuards(JwtAuthGuard)
+  findByUserId(@Request() req) {
+    return this.subscriptionService.findByUserId(req.user.id);
+  }
+
   @Post('checkout')
   @UseGuards(JwtAuthGuard)
   @ApiCreateCheckoutSession()
@@ -34,11 +40,6 @@ export class SubscriptionController {
   @Get()
   findAll() {
     return this.subscriptionService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.subscriptionService.findOne(+id);
   }
 
   @Patch(':id')

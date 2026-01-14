@@ -5,7 +5,6 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { ResponseHelper } from 'src/common/helpers/response.helper';
 import { AuthService } from 'src/modules/auth/service/auth.service';
@@ -76,8 +75,12 @@ export class UsersService {
     );
   }
 
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(email: string) {
     return this.usersRepository.findByEmail(email);
+  }
+
+  async getUserAuthData(email: string) {
+    return this.usersRepository.getUserAuthData(email);
   }
 
   async findById(id: string) {

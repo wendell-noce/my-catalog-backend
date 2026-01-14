@@ -61,8 +61,12 @@ export class SubscriptionService {
     return `This action returns all subscription`;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} subscription`;
+  findByUserId(userId: string) {
+    const subscription = this.subscriptionRepository.findByUserId(userId);
+    return ResponseHelper.success(
+      { subscription },
+      'Subscrição encontrada com sucesso',
+    );
   }
 
   update(id: number, updateSubscriptionDto: UpdateSubscriptionDto) {

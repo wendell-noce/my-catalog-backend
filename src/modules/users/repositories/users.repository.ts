@@ -78,16 +78,36 @@ export class UsersRepository {
     }
   }
 
-  async findByEmail(email: string) {
+  async getUserAuthData(email: string) {
     return this.prisma.user.findUnique({
       where: { email },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        isActive: true,
+        password: true,
+        role: true,
+        name: true,
         subscriptions: {
-          include: {
-            plan: true,
+          select: {
+            id: true,
+            status: true,
+            plan: {
+              select: {
+                id: true,
+                tier: true,
+              },
+            },
           },
         },
       },
+    });
+  }
+
+  async findByEmail(email: string) {
+    return this.prisma.user.findUnique({
+      where: { email },
+      select: this.defaultSelect,
     });
   }
 

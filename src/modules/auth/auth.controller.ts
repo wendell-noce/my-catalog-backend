@@ -6,8 +6,13 @@ import {
   HttpStatus,
   Param,
   Post,
+  Req,
+  Res,
+  UseGuards,
 } from '@nestjs/common';
 
+import { AuthGuard } from '@nestjs/passport';
+import { ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import {
   ApiForgotPassword,
@@ -51,11 +56,34 @@ export class AuthController {
     return this.authService.resetPassword(resetPasswordDto);
   }
 
+  @Post('refresh')
+  @ApiOperation({ summary: 'Renova o token de acesso do usuário' })
+  async refresh(@Body('refreshToken') refreshToken: string) {
+    return this.authService.refreshTokens(refreshToken);
+  }
+
   @Get('validate-reset-token/:token')
   @ApiValidateResetToken()
   async validateResetToken(
     @Param('token') token: string,
   ): Promise<ValidateTokenResponse> {
     return this.authService.validateResetToken(token);
+  }
+
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth(@Req() _req) {
+    // *** O Passport cuida do redirecionamento ***/
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthRedirect(@Req() req, @Res() res) {
+    const user = req.user;
+    const tokens = await this.authService.generateTokens(user.id, user.email);
+
+    return res.redirect(
+      `${process.env.FRONTEND_URL}/login-success?token=${tokens.accessToken}&refresh=${tokens.refreshToken}`,
+    );
   }
 }

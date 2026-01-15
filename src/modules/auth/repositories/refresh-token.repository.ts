@@ -11,6 +11,8 @@ export class RefreshTokenRepository {
     token: string,
     expiresAt: Date,
   ): Promise<RefreshToken> {
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
+
     return this.prisma.refreshToken.create({
       data: {
         token,

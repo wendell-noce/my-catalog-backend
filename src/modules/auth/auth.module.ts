@@ -1,12 +1,13 @@
 import { forwardRef, Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { RefreshTokenRepository } from './repositories/refresh-token.repository';
 import { AuthService } from './service/auth.service';
+import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
@@ -25,7 +26,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     forwardRef(() => UsersModule),
   ],
   controllers: [AuthController],
-  providers: [AuthService, RefreshTokenRepository, JwtStrategy],
+  providers: [AuthService, RefreshTokenRepository, JwtStrategy, GoogleStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

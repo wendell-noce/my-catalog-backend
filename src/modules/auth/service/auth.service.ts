@@ -74,6 +74,11 @@ export class AuthService {
       }),
     ]);
 
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await this.refreshTokenRepository.create(userId, refreshToken, expiresAt);
+
     return {
       accessToken,
       refreshToken,
@@ -192,5 +197,58 @@ export class AuthService {
     }
 
     return { valid: true };
+  }
+
+  async validateGoogleUser(details: any) {
+    // 1. Procura o usuário pelo e-mail
+    let user = await this.prisma.user.findUnique({
+      where: { email: details.email },
+    });
+
+    if (user) {
+      // 2. Se o usuário existe, mas não tinha Google vinculado, vinculamos agora
+      if (!user.providerId) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            provider: 'google',
+            providerId: details.googleId,
+            avatar: user.avatar || details.picture, // Atualiza foto se não tiver
+          },
+        });
+      }
+      return user;
+    }
+
+    // 3. Se não existe, cria um novo usuário
+    // Note: Campos como 'password' ficam vazios ou com hash aleatório
+    return await this.prisma.user.create({
+      data: {
+        email: details.email,
+        name: `${details.firstName} ${details.lastName}`,
+        avatar: details.picture,
+        provider: 'google',
+        providerId: details.googleId,
+        password: '', // Como é login social, não terá senha local inicial
+        isActive: true,
+        emailVerified: true,
+        profileCompleted: false, // Importante para você pedir endereço/telefone depois
+      },
+    });
+  }
+
+  async refreshTokens(refreshToken: string) {
+    const savedToken: any =
+      await this.refreshTokenRepository.findByToken(refreshToken);
+    if (!savedToken || !savedToken.user) {
+      throw new UnauthorizedException('Token de atualização inválido.');
+    }
+
+    if (new Date() > savedToken.expiresAt) {
+      await this.refreshTokenRepository.deleteByToken(refreshToken);
+      throw new UnauthorizedException('Sessão expirada. Faça login novamente.');
+    }
+
+    return this.generateTokens(savedToken.user.id, savedToken.user.email);
   }
 }

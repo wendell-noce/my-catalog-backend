@@ -1,4 +1,9 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { AddressType, Prisma } from '@prisma/client';
 import { UpdateAddressDto } from 'src/modules/addresses/dto/update-address.dto';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
@@ -187,23 +192,71 @@ export class UsersRepository {
     userData: Partial<UpdateUserDto>,
     address: UpdateAddressDto,
   ) {
+    const { ...onlyUserData } = userData;
     const { type, ...addressData } = address;
 
-    return this.prisma.$transaction(async (prisma) => {
-      const mainAddress = await this.findUserAddress(id, type, prisma);
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const userAddressEntry = await tx.userAddress.findFirst({
+          where: { user_id: id, type: type || 'MAIN' },
+        });
 
-      if (!mainAddress) {
-        await this.createNewAddress(id, addressData, type, prisma);
-      } else {
-        await this.updateExistingAddress(
-          mainAddress.address_id,
-          addressData,
-          prisma,
-        );
+        if (!userAddressEntry) {
+          await tx.address.create({
+            data: {
+              street: addressData.street ?? '',
+              number: addressData.number ?? 'S/N',
+              neighborhood: addressData.neighborhood ?? '',
+              city: addressData.city ?? '',
+              state: addressData.state ?? '',
+              zip_code: addressData.zip_code ?? '',
+              country: addressData.country ?? 'Brasil',
+              complement: addressData.complement,
+              userAddresses: {
+                create: {
+                  user_id: id,
+                  type: type || 'MAIN',
+                  is_default: true,
+                },
+              },
+            },
+          });
+        } else {
+          await tx.address.update({
+            where: { id: userAddressEntry.address_id },
+            data: addressData,
+          });
+        }
+
+        return await tx.user.update({
+          where: { id },
+          data: {
+            ...onlyUserData,
+            profileCompleted: true,
+            birthDate: onlyUserData.birthDate
+              ? new Date(onlyUserData.birthDate)
+              : undefined,
+          },
+        });
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  private handleDatabaseError(error: any) {
+    console.error('Erro na atualização:', error);
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        throw new ConflictException('E-mail ou documento já em uso.');
       }
+      if (error.code === 'P2025') {
+        throw new NotFoundException('Usuário ou Endereço não encontrado.');
+      }
+    }
 
-      return this.updateUserOnly(id, userData);
-    });
+    throw new InternalServerErrorException('Erro ao atualizar perfil.');
   }
 
   private async findUserAddress(
@@ -259,7 +312,7 @@ export class UsersRepository {
 
   async restore(id: string) {
     return this.prisma.user.update({
-      where: { id },
+      where: { id: id },
       data: { deletedAt: null },
     });
   }

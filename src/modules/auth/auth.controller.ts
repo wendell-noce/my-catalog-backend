@@ -72,12 +72,14 @@ export class AuthController {
 
   @Get('google')
   @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Inicia a Autenticação com o Google' })
   async googleAuth(@Req() _req) {
     // *** O Passport cuida do redirecionamento ***/
   }
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Callback da Autenticação com o Google' })
   async googleAuthRedirect(@Req() req, @Res() res) {
     const user = req.user;
     const tokens = await this.authService.generateTokens(user.id, user.email);

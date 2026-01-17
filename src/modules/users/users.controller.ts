@@ -2,14 +2,20 @@ import {
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Patch,
   Post,
   Query,
   Request,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../common/guard/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import {
@@ -21,6 +27,7 @@ import {
   ApiRegisterUser,
   ApiRestoreUser,
   ApiUpdateUser,
+  ApiUploadAvatar,
   ApiUserProfile,
   findWithAddressById,
 } from './decorators/api-docs.decorator';
@@ -90,6 +97,27 @@ export class UsersController {
   @ApiRegisterUser()
   async register(@Body() registerUser: RegisterUserDto) {
     return this.usersService.register(registerUser);
+  }
+
+  @Patch('avatar')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiUploadAvatar()
+  async updateAvatar(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 2 }), // 2MB
+          new FileTypeValidator({ fileType: '.(png|jpeg|jpg)' }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+    @Request() req: any,
+  ) {
+    const userId = req.user.id;
+
+    return this.usersService.updateAvatar(userId, file);
   }
 
   @Patch(':id')

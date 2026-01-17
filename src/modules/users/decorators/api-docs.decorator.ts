@@ -2,6 +2,7 @@ import { applyDecorators } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -295,6 +296,53 @@ export function ApiCheckProfileCompleted() {
           error: 'Not Found',
         },
       },
+    }),
+  );
+}
+
+export function ApiUploadAvatar() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Upload de avatar do usuário',
+      description:
+        'Envia uma imagem para o perfil do usuário logado. Formatos aceitos: JPG, PNG.',
+    }),
+    ApiConsumes('multipart/form-data'),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          file: {
+            type: 'string',
+            format: 'binary',
+            description: 'Arquivo de imagem do avatar',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Avatar atualizado com sucesso. Retorna a nova URL.',
+      schema: {
+        example: {
+          success: true,
+          message: 'Avatar atualizado com sucesso',
+          data: {
+            avatar:
+              'https://pgwnsrnshdyvzavvejej.supabase.co/storage/v1/object/public/avatars/2cd384ab-2386-4607-9f2e-d9fc02f32bf2/profile-avatar-1768622214672.jpeg',
+          },
+          timestamp: '2026-01-17T03:56:56.173Z',
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Arquivo inválido ou muito grande.',
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Não autorizado (Token ausente ou inválido).',
     }),
   );
 }

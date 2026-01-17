@@ -8,6 +8,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { ResponseHelper } from 'src/common/helpers/response.helper';
 import { AuthService } from 'src/modules/auth/service/auth.service';
+import { StorageService } from 'src/modules/storage/service/storage.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { RegisterUserDto } from '../dto/register-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
@@ -20,6 +21,7 @@ export class UsersService {
     private usersRepository: UsersRepository,
     @Inject(forwardRef(() => AuthService))
     private authService: AuthService,
+    private storageService: StorageService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<{ message: string }> {
@@ -84,9 +86,11 @@ export class UsersService {
   }
 
   async findById(id: string) {
+    console.log(id);
+
     const user = await this.usersRepository.findById(id);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Usuário não encontrado');
     }
 
     return user;
@@ -162,5 +166,26 @@ export class UsersService {
   async checkProfileCompleted(userId: string) {
     const user = await this.usersRepository.findById(userId);
     return user?.profileCompleted ?? false;
+  }
+
+  async updateAvatar(userId: string, file: Express.Multer.File) {
+    console.log(userId);
+
+    await this.findById(userId);
+
+    const fileExt = file.originalname.split('.').pop();
+    const path = `${userId}/profile-avatar-${Date.now()}.${fileExt}`;
+
+    const publicUrl = await this.storageService.upload(file, 'avatars', path);
+
+    const updatedUser = await this.usersRepository.updateUpdateAvatar(
+      userId,
+      publicUrl,
+    );
+
+    return ResponseHelper.success(
+      { avatar: updatedUser.avatar },
+      'Avatar atualizado com sucesso',
+    );
   }
 }

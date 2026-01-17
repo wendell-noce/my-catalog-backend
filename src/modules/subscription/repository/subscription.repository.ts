@@ -45,8 +45,6 @@ export class SubscriptionRepository {
   }
 
   async findByUserId(userId: string) {
-    console.log(userId);
-
     return await this.prisma.subscription.findUnique({
       where: { userId: userId },
     });

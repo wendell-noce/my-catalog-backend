@@ -15,17 +15,12 @@ datasource db {
 // ============================================
 
 enum ThemeStore {
-  default
-  electronics
-  pets
-  fashion
-  beauty
-  sports
-  food
-  books
-  home
-  kids
-  automotive
+  DEFAULT
+  MODERN
+  MINIMAL
+  VINTAGE
+  BOLD
+  CLASSIC
 }
 
 enum Status {
@@ -308,7 +303,7 @@ model Store {
   facebookUrl  String?
   phoneNumber  String?
   cellPhone    String?
-  themeStore   ThemeStore @default(default)
+  themeStore   ThemeStore @default(DEFAULT)
   isActive     Boolean    @default(true)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
@@ -324,6 +319,7 @@ model Store {
   blogPosts      BlogPost[]
   blogCategories BlogCategory[]
   linktrees      Linktree[]
+  orders         Order[]
 
   @@map("stores")
 }
@@ -349,11 +345,12 @@ model Product {
   updatedAt   DateTime    @updatedAt
 
   // Relations
-  category Category        @relation(fields: [categoryId], references: [id])
-  store    Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  images   ProductImage[]
-  reviews  ProductReview[]
-  tags     ProductTag[]
+  category   Category        @relation(fields: [categoryId], references: [id])
+  store      Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  images     ProductImage[]
+  reviews    ProductReview[]
+  tags       ProductTag[]
+  orderItems OrderItem[]
 
   @@index([storeId])
   @@index([categoryId])
@@ -464,6 +461,61 @@ model InventoryItem {
   store Store? @relation(fields: [storeId], references: [id], onDelete: SetNull)
 
   @@map("inventory_items")
+}
+
+// ============================================
+// ORDERS (Solicitações de Orçamento/Contato)
+// ============================================
+
+enum OrderStatus {
+  CANCELLED // *** -> Cliente cancelou o pedido   
+  COMPLETED // *** -> Venda fechada
+  CONTACTED // *** -> Lojista entrou em contato com o cliente  
+  PENDING // *** -> Cliente enviou, mas lojista não visualizou ou não entrou em contato
+  NOT_RESPONDED // *** -> Lojista entrou em contato, mas o cliente não respondeu
+}
+
+model Order {
+  id      String      @id @default(uuid())
+  storeId String
+  status  OrderStatus @default(PENDING)
+
+  // *** Client infos ***
+  customerName    String
+  customerEmail   String
+  customerPhone   String
+  customerMessage String? @db.Text
+
+  totalAmount Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  store Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  items OrderItem[]
+
+  @@index([storeId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String @id @default(uuid())
+  orderId   String
+  productId String
+
+  // *** (importante: se o lojista mudar o preço do produto amanhã, o pedido antigo tem que manter o preço da época)
+  productName  String
+  productPrice Decimal @db.Decimal(10, 2)
+  quantity     Int     @default(1)
+
+  // Relations
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
 }
 
 // ============================================

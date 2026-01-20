@@ -86,8 +86,6 @@ export class UsersService {
   }
 
   async findById(id: string) {
-    console.log(id);
-
     const user = await this.usersRepository.findById(id);
     if (!user) {
       throw new NotFoundException('Usuário não encontrado');
@@ -169,8 +167,6 @@ export class UsersService {
   }
 
   async updateAvatar(userId: string, file: Express.Multer.File) {
-    console.log(userId);
-
     await this.findById(userId);
 
     const fileExt = file.originalname.split('.').pop();

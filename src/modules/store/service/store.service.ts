@@ -5,14 +5,16 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { ResponseHelper } from 'src/common/helpers/response.helper';
 import { CreateStoreDto } from '../dto/create-store.dto';
+import { UpdateStoreDto } from '../dto/update-store.dto';
 import { StoreRepository } from '../repository/store.repository';
 
 @Injectable()
 export class StoreService {
   constructor(private readonly storeRepository: StoreRepository) {}
 
-  async create(userId: string, createStoreDto: CreateStoreDto) {
+  async createStore(userId: string, createStoreDto: CreateStoreDto) {
     try {
       const existingStore = await this.storeRepository.findBySlug(
         createStoreDto.slug,
@@ -24,9 +26,9 @@ export class StoreService {
         );
       }
 
-      const store = await this.storeRepository.create(userId, createStoreDto);
+      await this.storeRepository.create(userId, createStoreDto);
 
-      return store;
+      return ResponseHelper.success('Loja criada com sucesso');
     } catch (error) {
       if (
         error instanceof ConflictException ||
@@ -60,11 +62,38 @@ export class StoreService {
     return `This action returns a #${id} store`;
   }
 
-  // update(id: string, updateStoreDto: UpdateStoreDto) {
-  //   return `This action updates a #${id} store`;
-  // }
+  async findBySlug(slug: string) {
+    const store = await this.storeRepository.findBySlug(slug);
+    if (!store) {
+      throw new NotFoundException('Loja não encontrada');
+    }
+    return ResponseHelper.success(store);
+  }
 
-  remove(id: string) {
-    return `This action removes a #${id} store`;
+  async update(id: string, updateStoreDto: UpdateStoreDto) {
+    const store = await this.storeRepository.update(id, updateStoreDto);
+    if (!store) {
+      throw new NotFoundException('Loja não encontrada');
+    }
+    return ResponseHelper.success(
+      store,
+      `Loja ${store.name} atualizada com sucesso`,
+    );
+  }
+
+  async remove(id: string) {
+    const store = await this.storeRepository.remove(id);
+    if (!store) {
+      throw new NotFoundException('Loja não encontrada');
+    }
+    return ResponseHelper.success(store, 'Loja removida com sucesso');
+  }
+
+  async restore(id: string) {
+    const store = await this.storeRepository.restore(id);
+    if (!store) {
+      throw new NotFoundException('Loja não encontrada');
+    }
+    return ResponseHelper.success(store, 'Loja restaurada com sucesso');
   }
 }

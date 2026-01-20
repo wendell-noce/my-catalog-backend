@@ -1,60 +1,58 @@
 import {
   Body,
-  ConflictException,
   Controller,
   Delete,
   Get,
   Param,
   Patch,
   Post,
-  Request,
+  Req,
   UseGuards,
 } from '@nestjs/common';
-import { ResponseHelper } from 'src/common/helpers/response.helper';
-import { JwtAuthGuard } from '../../common/guard/jwt-auth.guard';
+import { ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
+import { ApiCreateStore } from './decorators/api-docs.decorator';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { StoreService } from './service/store.service';
 
-@Controller('store')
+@ApiTags('Stores')
+@Controller('stores')
 export class StoreController {
   constructor(private readonly storeService: StoreService) {}
 
   @Post('create')
   @UseGuards(JwtAuthGuard)
-  async create(@Body() createStoreDto: CreateStoreDto, @Request() req) {
-    try {
-      const store = await this.storeService.create(req.user.id, createStoreDto);
-      return ResponseHelper.success(store, 'Sua loja foi criada com sucesso');
-    } catch (error) {
-      if (error.code === 'P2002') {
-        throw new ConflictException(
-          `Já existe uma loja com o slug "${createStoreDto.slug}"`,
-        );
-      }
-      throw error;
-    }
+  @ApiCreateStore()
+  async create(@Req() req, @Body() createStoreData: CreateStoreDto) {
+    return await this.storeService.createStore(req.user.id, createStoreData);
   }
 
-  @Get()
-  findAll() {
-    return this.storeService.findAll();
+  @Get('slug/:slug')
+  @UseGuards(JwtAuthGuard)
+  findBySlug(@Param('slug') slug: string) {
+    return this.storeService.findBySlug(slug);
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
   findOne(@Param('id') id: string) {
     return this.storeService.findOne(id);
   }
 
-  @Get('my-stores')
-  findMyStores(@Param('id') id: string) {
-    return this.storeService.findByUserId(id);
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  update(@Param('id') id: string, @Body() updateStoreDto: any) {
+    return this.storeService.update(id, updateStoreDto);
   }
 
-  @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateStoreDto: UpdateStoreDto) {
-  //   return this.storeService.update(id, updateStoreDto);
-  // }
+  @Patch(':id/restore')
+  @UseGuards(JwtAuthGuard)
+  restore(@Param('id') id: string) {
+    return this.storeService.restore(id);
+  }
+
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
   remove(@Param('id') id: string) {
     return this.storeService.remove(id);
   }

@@ -5,6 +5,8 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './modules/auth/auth.module';
 import { PlanModule } from './modules/plan/plan.module';
+import { ProductCategoryModule } from './modules/product-category/product-category.module';
+import { ProductModule } from './modules/product/product.module';
 import { StoreModule } from './modules/store/store.module';
 import { StripeModule } from './modules/stripe/stripe.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
@@ -29,6 +31,8 @@ import { PrismaModule } from './shared/prisma/primas.module';
       },
     ]),
     PlanModule,
+    ProductModule,
+    ProductCategoryModule,
   ],
   providers: [
     {

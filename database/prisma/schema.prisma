@@ -118,6 +118,28 @@ enum PlanInterval {
   YEARLY
 }
 
+enum ProductUnit {
+  UN // *** -> Unidade
+  KG // *** -> Quilograma
+  GR // *** -> Grama
+  LT // *** -> Litro
+  ML // *** -> Mililitro
+  MT // *** -> Metro
+  CM // *** -> Centímetro
+  CX // *** -> Caixa
+  PC // *** -> Pacote
+  PAR // *** -> Par (ex: sapatos)
+  KIT // *** -> Kit
+}
+
+enum OrderStatus {
+  CANCELLED // *** -> Cliente cancelou o pedido   
+  COMPLETED // *** -> Venda fechada
+  CONTACTED // *** -> Lojista entrou em contato com o cliente  
+  PENDING // *** -> Cliente enviou, mas lojista não visualizou ou não entrou em contato
+  NOT_RESPONDED // *** -> Lojista entrou em contato, mas o cliente não respondeu
+}
+
 // ============================================
 // USER & AUTHENTICATION
 // ============================================
@@ -310,9 +332,9 @@ model Store {
   deletedAt    DateTime?
 
   // Relations
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   products       Product[]
-  categories     Category[]
+  categories     ProductCategory[]
   inventoryItems InventoryItem[]
   storeAddresses StoreAddress[]
   pages          Page[]
@@ -329,28 +351,35 @@ model Store {
 // ============================================
 
 model Product {
-  id          String      @id @default(uuid())
-  name        String
-  description String?
-  itemsDetail String?
-  productType ProductType @default(PHYSICAL)
-  categoryId  String
-  slug        String      @unique
-  price       Float
-  discount    Float?
-  storeId     String
-  isActive    Boolean     @default(true)
-  featured    Boolean     @default(false)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id              String      @id @default(uuid())
+  inventoryItemId String?     @unique
+  name            String
+  description     String?
+  itemsDetail     String?
+  productType     ProductType @default(PHYSICAL)
+  categoryId      String
+  slug            String      @unique
+  price           Decimal     @db.Decimal(10, 2)
+  discount        Decimal     @db.Decimal(10, 2)
+
+  storeId         String
+  isActive        Boolean     @default(true)
+  featured        Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deletedAt       DateTime?
+  metaTitle       String?
+  metaDescription String?
+  unit            ProductUnit @default(UN)
 
   // Relations
-  category   Category        @relation(fields: [categoryId], references: [id])
-  store      Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  images     ProductImage[]
-  reviews    ProductReview[]
-  tags       ProductTag[]
-  orderItems OrderItem[]
+  inventoryItem InventoryItem?  @relation(fields: [inventoryItemId], references: [id])
+  category      ProductCategory @relation(fields: [categoryId], references: [id])
+  store         Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  images        ProductImage[]
+  reviews       ProductReview[]
+  tags          ProductTag[]
+  orderItems    OrderItem[]
 
   @@index([storeId])
   @@index([categoryId])
@@ -361,14 +390,15 @@ model Product {
 }
 
 model ProductImage {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   productId String
   image     String
   alt       String?
   order     Int?
-  isMain    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isMain    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
@@ -378,16 +408,17 @@ model ProductImage {
 }
 
 model ProductReview {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   productId  String
   userId     String?
   rating     Int
   comment    String?
   userName   String?
   userEmail  String?
-  isVerified Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  isVerified Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
@@ -401,27 +432,29 @@ model ProductTag {
   name      String    @unique
   color     String?
   createdAt DateTime  @default(now())
+  deletedAt DateTime?
   products  Product[]
 
   @@map("product_tags")
 }
 
-model Category {
-  id          String   @id @default(uuid())
+model ProductCategory {
+  id          String    @id @default(uuid())
   name        String
-  slug        String   @unique
+  slug        String    @unique
   description String?
   storeId     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  isActive    Boolean  @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  isActive    Boolean   @default(true)
   color       String?
   icon        String?
 
   products Product[]
   store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
-  @@map("categories")
+  @@map("product_categories")
 }
 
 // ============================================
@@ -429,27 +462,27 @@ model Category {
 // ============================================
 
 model InventoryItem {
-  id             String    @id @default(cuid())
-  sku            String    @unique
+  id             String      @id @default(cuid())
+  sku            String      @unique
   name           String
   category       String?
   description    String?
   brand          String?
-  quantity       Int       @default(0)
-  unit           String    @default("un")
+  quantity       Int         @default(0)
+  unit           ProductUnit @default(UN)
   minStock       Int?
   location       String?
-  costPrice      Decimal   @default(0.00)
-  salePrice      Decimal   @default(0.00)
-  entryDate      DateTime  @default(now())
-  lastUpdated    DateTime  @updatedAt
+  costPrice      Decimal     @default(0.00)
+  salePrice      Decimal     @default(0.00)
+  entryDate      DateTime    @default(now())
+  lastUpdated    DateTime    @updatedAt
   expirationDate DateTime?
   supplier       String?
   barcode        String?
   notes          String?
   tags           String[]
   storeId        String?
-  status         Status    @default(ACTIVE)
+  status         Status      @default(ACTIVE)
   weight         Decimal?
   length         Decimal?
   width          Decimal?
@@ -458,7 +491,8 @@ model InventoryItem {
   size           String?
   model          String?
 
-  store Store? @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  store   Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  product Product?
 
   @@map("inventory_items")
 }
@@ -466,14 +500,6 @@ model InventoryItem {
 // ============================================
 // ORDERS (Solicitações de Orçamento/Contato)
 // ============================================
-
-enum OrderStatus {
-  CANCELLED // *** -> Cliente cancelou o pedido   
-  COMPLETED // *** -> Venda fechada
-  CONTACTED // *** -> Lojista entrou em contato com o cliente  
-  PENDING // *** -> Cliente enviou, mas lojista não visualizou ou não entrou em contato
-  NOT_RESPONDED // *** -> Lojista entrou em contato, mas o cliente não respondeu
-}
 
 model Order {
   id      String      @id @default(uuid())

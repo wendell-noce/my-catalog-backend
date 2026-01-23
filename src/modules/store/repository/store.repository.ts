@@ -119,6 +119,14 @@ export class StoreRepository {
     return store;
   }
 
+  async findById(id: string): Promise<Store | null> {
+    const store = await this.prisma.store.findUnique({
+      where: { id },
+    });
+
+    return store;
+  }
+
   async update(storeId: string, data: any) {
     // Use o seu UpdateStoreDto aqui
     try {

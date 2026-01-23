@@ -50,11 +50,7 @@ export class StoreService {
     return `This action returns all store`;
   }
 
-  findByUserId(id: string) {
-    return `This action returns a #${id} store`;
-  }
-
-  findByStoreId(id: string) {
+  findById(id: string) {
     return `This action returns a #${id} store`;
   }
 
